@@ -5,6 +5,11 @@ const HIVE_INTERNAL_KEY = process.env.HIVE_INTERNAL_KEY || '';
 const HIVETRUST_API_KEY = process.env.HIVETRUST_API_KEY || HIVE_INTERNAL_KEY;
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
+/** Strip did:hive: prefix to get the UUID for HiveTrust API calls */
+function didToUuid(did) {
+  return did.replace(/^did:hive:/, '');
+}
+
 /**
  * Log an audit entry for cross-platform calls.
  */
@@ -37,7 +42,8 @@ export async function verifyDID(did) {
     };
   }
 
-  const endpoint = `/v1/agents/${encodeURIComponent(did)}`;
+  const uuid = didToUuid(did);
+  const endpoint = `/v1/agents/${encodeURIComponent(uuid)}`;
   const startTime = Date.now();
   try {
     const res = await fetch(`${HIVETRUST_API_URL}${endpoint}`, {
