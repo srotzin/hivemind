@@ -26,7 +26,7 @@ router.get('/status', requireDID, async (req, res) => {
     ]);
 
     // Get HiveMind stats
-    const memStats = memoryStore.getAgentStats(did);
+    const memStats = await memoryStore.getAgentStats(did);
 
     return res.status(200).json({
       success: true,
@@ -79,25 +79,33 @@ router.get('/status', requireDID, async (req, res) => {
  * GET /v1/trifecta/diagnostics
  * Internal diagnostics for the platform operator.
  */
-router.get('/diagnostics', requireDID, (req, res) => {
-  const daemonStatus = lifecycleDaemon.getStatus();
-  const sessions = getActiveSessions();
-  const globalStats = memoryStore.getGlobalHiveStats();
+router.get('/diagnostics', requireDID, async (req, res) => {
+  try {
+    const daemonStatus = await lifecycleDaemon.getStatus();
+    const sessions = getActiveSessions();
+    const globalStats = await memoryStore.getGlobalHiveStats();
 
-  return res.status(200).json({
-    success: true,
-    data: {
-      platform: 'hivemind',
-      version: '1.0.0',
-      uptime_seconds: Math.floor(process.uptime()),
-      embedding_mode: getEmbeddingMode(),
-      vector_dimensions: DIMENSIONS,
-      lifecycle_daemon: daemonStatus,
-      active_sessions: sessions,
-      global_hive: globalStats,
-      node_env: process.env.NODE_ENV || 'development',
-    },
-  });
+    return res.status(200).json({
+      success: true,
+      data: {
+        platform: 'hivemind',
+        version: '1.0.0',
+        uptime_seconds: Math.floor(process.uptime()),
+        embedding_mode: getEmbeddingMode(),
+        vector_dimensions: DIMENSIONS,
+        lifecycle_daemon: daemonStatus,
+        active_sessions: sessions,
+        global_hive: globalStats,
+        node_env: process.env.NODE_ENV || 'development',
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve diagnostics.',
+      detail: err.message,
+    });
+  }
 });
 
 export default router;

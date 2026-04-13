@@ -147,16 +147,24 @@ router.post('/query', requireDID, async (req, res) => {
  *
  * Auth: requireDID
  */
-router.delete('/:nodeId', requireDID, (req, res) => {
-  const did = req.agentDid;
-  const { nodeId } = req.params;
+router.delete('/:nodeId', requireDID, async (req, res) => {
+  try {
+    const did = req.agentDid;
+    const { nodeId } = req.params;
 
-  const result = memoryStore.deleteNode(did, nodeId);
+    const result = await memoryStore.deleteNode(did, nodeId);
 
-  if (result.deleted) {
-    return res.status(200).json({ success: true, data: result });
+    if (result.deleted) {
+      return res.status(200).json({ success: true, data: result });
+    }
+    return res.status(404).json({ success: false, error: result.error });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to delete memory node.',
+      detail: err.message,
+    });
   }
-  return res.status(404).json({ success: false, error: result.error });
 });
 
 /**
@@ -165,14 +173,22 @@ router.delete('/:nodeId', requireDID, (req, res) => {
  *
  * Auth: requireDID
  */
-router.get('/stats', requireDID, (req, res) => {
-  const did = req.agentDid;
-  const stats = memoryStore.getAgentStats(did);
+router.get('/stats', requireDID, async (req, res) => {
+  try {
+    const did = req.agentDid;
+    const stats = await memoryStore.getAgentStats(did);
 
-  return res.status(200).json({
-    success: true,
-    data: stats,
-  });
+    return res.status(200).json({
+      success: true,
+      data: stats,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve stats.',
+      detail: err.message,
+    });
+  }
 });
 
 export default router;

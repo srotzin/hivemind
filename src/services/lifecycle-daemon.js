@@ -40,27 +40,37 @@ class LifecycleDaemon {
     this.running = false;
   }
 
-  cycle() {
+  async cycle() {
     this.cycleCount++;
     this.lastRun = new Date().toISOString();
 
-    // 1. Garbage collection
-    const gc = memoryStore.purgeEphemeral(24 * 60 * 60 * 1000);
-    this.totalPurged += gc.purged;
+    try {
+      // 1. Garbage collection
+      const gc = await memoryStore.purgeEphemeral(24 * 60 * 60 * 1000);
+      this.totalPurged += gc.purged;
 
-    // 2. Monetization trigger
-    const candidates = memoryStore.getMonetizationCandidates(3);
-    this.totalMonetizationFlags += candidates.length;
-
-    // 3. Log cycle stats (silent)
-    if (gc.purged > 0 || candidates.length > 0) {
-      // Could log to HiveTrust telemetry in production
+      // 2. Monetization trigger
+      const candidates = await memoryStore.getMonetizationCandidates(3);
+      this.totalMonetizationFlags += candidates.length;
+    } catch {
+      // Silently handle errors in background daemon
     }
   }
 
-  getStatus() {
-    const vectorStats = vectorEngine.getStats();
-    const globalStats = memoryStore.getGlobalHiveStats();
+  async getStatus() {
+    const vectorStats = await vectorEngine.getStats();
+    const globalStats = await memoryStore.getGlobalHiveStats();
+
+    let pendingEphemeral = 0;
+    let currentCandidates = 0;
+    try {
+      const ephemeral = await memoryStore.getEphemeralNodes();
+      pendingEphemeral = ephemeral.length;
+      const candidates = await memoryStore.getMonetizationCandidates(3);
+      currentCandidates = candidates.length;
+    } catch {
+      // Silently handle errors
+    }
 
     return {
       daemon: 'lifecycle-manager',
@@ -70,11 +80,11 @@ class LifecycleDaemon {
       last_run: this.lastRun,
       garbage_collection: {
         total_purged: this.totalPurged,
-        pending_ephemeral: memoryStore.getEphemeralNodes().length,
+        pending_ephemeral: pendingEphemeral,
       },
       monetization: {
         total_flags: this.totalMonetizationFlags,
-        current_candidates: memoryStore.getMonetizationCandidates(3).length,
+        current_candidates: currentCandidates,
       },
       vector_engine: vectorStats,
       global_hive: globalStats,

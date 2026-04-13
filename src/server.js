@@ -6,6 +6,8 @@ import trifectaRoutes from './routes/trifecta.js';
 import lifecycleDaemon from './services/lifecycle-daemon.js';
 import { getEmbeddingMode, DIMENSIONS } from './services/embedding.js';
 import vectorEngine from './services/vector-engine.js';
+import { initDatabase, pool, isPostgresEnabled } from './services/db.js';
+import { rateLimit } from './middleware/rate-limit.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -21,6 +23,9 @@ app.use(cors({
     'X-HiveTrust-Warning',
     'X-Payment-Amount',
     'X-Payment-Currency',
+    'X-RateLimit-Limit',
+    'X-RateLimit-Remaining',
+    'X-RateLimit-Reset',
   ],
   allowedHeaders: [
     'Content-Type',
@@ -37,10 +42,24 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 
+// Rate limiting middleware (no-op if DATABASE_URL not set)
+app.use(rateLimit);
+
 // ─── Health Endpoint ─────────────────────────────────────────────────
 
-app.get('/health', (req, res) => {
-  const vectorStats = vectorEngine.getStats();
+app.get('/health', async (req, res) => {
+  const vectorStats = await vectorEngine.getStats();
+
+  // Check PostgreSQL connection
+  let pgStatus = 'not_configured';
+  if (isPostgresEnabled()) {
+    try {
+      await pool.query('SELECT 1');
+      pgStatus = 'connected';
+    } catch {
+      pgStatus = 'disconnected';
+    }
+  }
 
   res.json({
     success: true,
@@ -48,6 +67,10 @@ app.get('/health', (req, res) => {
       service: 'hivemind',
       version: '1.0.0',
       status: 'operational',
+      database: {
+        backend: isPostgresEnabled() ? 'postgresql' : 'in-memory',
+        status: pgStatus,
+      },
       memory_tiers: {
         private_core: true,
         swarm: true,
@@ -139,20 +162,63 @@ app.use((req, res) => {
   });
 });
 
+// ─── Sentry-Compatible Error Handler ────────────────────────────────
+
+app.use((err, req, res, _next) => {
+  const errorPayload = {
+    success: false,
+    error: 'Internal Server Error',
+    message: err.message,
+    timestamp: new Date().toISOString(),
+    path: req.path,
+    method: req.method,
+  };
+
+  // Structured JSON logging for Sentry/observability
+  console.error(JSON.stringify({
+    level: 'error',
+    service: 'hivemind',
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    timestamp: new Date().toISOString(),
+  }));
+
+  res.status(500).json(errorPayload);
+});
+
 // ─── Start Server ────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-  console.log(`\n  HiveMind API v1.0.0`);
-  console.log(`  The "I'm Home" Front Door to the Hive Constellation\n`);
-  console.log(`  Server:     http://localhost:${PORT}`);
-  console.log(`  Health:     http://localhost:${PORT}/health`);
-  console.log(`  Trifecta:   http://localhost:${PORT}/v1/trifecta/status`);
-  console.log(`  Embedding:  ${getEmbeddingMode()} (${DIMENSIONS}d vectors)`);
-  console.log(`  Env:        ${process.env.NODE_ENV || 'development'}\n`);
+async function start() {
+  // Initialize database before listening
+  try {
+    const dbReady = await initDatabase();
+    if (dbReady) {
+      console.log('  Database:   PostgreSQL (pgvector enabled)');
+    } else {
+      console.log('  Database:   In-memory (local dev mode)');
+    }
+  } catch (err) {
+    console.error('  Database initialization failed:', err.message);
+    console.log('  Database:   Falling back to in-memory storage');
+  }
 
-  // Start the lifecycle daemon
-  lifecycleDaemon.start();
-  console.log('  Lifecycle daemon started (60s interval)\n');
-});
+  app.listen(PORT, () => {
+    console.log(`\n  HiveMind API v1.0.0`);
+    console.log(`  The "I'm Home" Front Door to the Hive Constellation\n`);
+    console.log(`  Server:     http://localhost:${PORT}`);
+    console.log(`  Health:     http://localhost:${PORT}/health`);
+    console.log(`  Trifecta:   http://localhost:${PORT}/v1/trifecta/status`);
+    console.log(`  Embedding:  ${getEmbeddingMode()} (${DIMENSIONS}d vectors)`);
+    console.log(`  Env:        ${process.env.NODE_ENV || 'development'}\n`);
+
+    // Start the lifecycle daemon
+    lifecycleDaemon.start();
+    console.log('  Lifecycle daemon started (60s interval)\n');
+  });
+}
+
+start();
 
 export default app;

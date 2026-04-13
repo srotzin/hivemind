@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireDID } from '../middleware/auth.js';
 import { requirePayment } from '../middleware/x402.js';
 import memoryStore from '../services/memory-store.js';
+import { pool, isPostgresEnabled } from '../services/db.js';
 
 const router = Router();
 
@@ -68,20 +69,31 @@ router.post('/purchase', requireDID, async (req, res) => {
       });
     }
 
-    // Look up the node to get the price
-    const globalStats = memoryStore.getGlobalHiveStats();
-    const nodeInfo = Array.from(memoryStore.globalHive?.entries?.() || [])
-      .find(([id]) => id === node_id);
+    // Look up the node to get the price — try PostgreSQL first, then in-memory
+    let nodePrice = null;
+    if (isPostgresEnabled()) {
+      const pgResult = await pool.query(
+        'SELECT price_usdc FROM hivemind.global_hive_listings WHERE node_id = $1',
+        [node_id]
+      );
+      if (pgResult.rows.length > 0) {
+        nodePrice = parseFloat(pgResult.rows[0].price_usdc);
+      }
+    } else {
+      const nodeInfo = Array.from(memoryStore.globalHive?.entries?.() || [])
+        .find(([id]) => id === node_id);
+      if (nodeInfo) {
+        nodePrice = nodeInfo[1].price_usdc;
+      }
+    }
 
-    if (!nodeInfo) {
+    if (nodePrice === null) {
       return res.status(404).json({
         success: false,
         error: 'Global Hive node not found.',
         node_id,
       });
     }
-
-    const [, node] = nodeInfo;
 
     // Check for payment proof (x402 or subscription or internal key)
     const paymentHash = req.headers['x-payment-hash'] || req.headers['x-402-tx'] || req.headers['x-payment-tx'];
@@ -97,14 +109,14 @@ router.post('/purchase', requireDID, async (req, res) => {
         status: '402 Payment Required',
         node_id,
         payment: {
-          amount_usdc: node.price_usdc,
+          amount_usdc: nodePrice,
           currency: 'USDC',
           network: 'Base L2',
           recipient_address: process.env.HIVE_PAYMENT_ADDRESS || '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18',
           fee_split: '90% to author / 10% platform',
         },
         instructions: {
-          step_1: `Send ${node.price_usdc} USDC to the recipient address on Base L2`,
+          step_1: `Send ${nodePrice} USDC to the recipient address on Base L2`,
           step_2: 'Include the transaction hash in the X-Payment-Hash header',
           step_3: 'Retry this request with the payment proof',
         },
@@ -152,7 +164,7 @@ router.get('/browse', async (req, res) => {
 
     if (!q || q.trim().length === 0) {
       // Return general stats and categories
-      const stats = memoryStore.getGlobalHiveStats();
+      const stats = await memoryStore.getGlobalHiveStats();
       return res.status(200).json({
         success: true,
         data: {
@@ -189,12 +201,20 @@ router.get('/browse', async (req, res) => {
  * Global Hive marketplace statistics.
  * Public endpoint.
  */
-router.get('/stats', (req, res) => {
-  const stats = memoryStore.getGlobalHiveStats();
-  return res.status(200).json({
-    success: true,
-    data: stats,
-  });
+router.get('/stats', async (req, res) => {
+  try {
+    const stats = await memoryStore.getGlobalHiveStats();
+    return res.status(200).json({
+      success: true,
+      data: stats,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve Global Hive stats.',
+      detail: err.message,
+    });
+  }
 });
 
 export default router;

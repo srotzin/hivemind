@@ -1,5 +1,22 @@
+import { pool, isPostgresEnabled } from './db.js';
+
 const HIVEAGENT_API_URL = process.env.HIVEAGENT_API_URL || 'https://hiveagentiq.com';
 const IS_DEV = process.env.NODE_ENV !== 'production';
+
+/**
+ * Log an audit entry for cross-platform calls.
+ */
+async function logAuditEntry(from, to, endpoint, did, method, statusCode, success, errorMsg, durationMs) {
+  if (!isPostgresEnabled()) return;
+  try {
+    await pool.query(
+      'INSERT INTO public.audit_log (from_platform, to_platform, endpoint, did, method, status_code, success, error_message, duration_ms) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      [from, to, endpoint, did, method, statusCode, success, errorMsg, durationMs]
+    );
+  } catch {
+    /* fire and forget */
+  }
+}
 
 /**
  * Search HiveAgent for agents/tools relevant to a query.
@@ -10,16 +27,23 @@ export async function findRelevantAgents(query) {
     return generateDevAgentSuggestions(query);
   }
 
+  const endpoint = `/v1/discover?q=${encodeURIComponent(query)}&limit=3`;
+  const startTime = Date.now();
   try {
-    const res = await fetch(`${HIVEAGENT_API_URL}/v1/discover?q=${encodeURIComponent(query)}&limit=3`, {
+    const res = await fetch(`${HIVEAGENT_API_URL}${endpoint}`, {
       headers: { 'Accept': 'application/json' },
       signal: AbortSignal.timeout(5000),
     });
 
+    const durationMs = Date.now() - startTime;
+    logAuditEntry('hivemind', 'hiveagent', endpoint, null, 'GET', res.status, res.ok, null, durationMs);
+
     if (!res.ok) return generateDevAgentSuggestions(query);
     const data = await res.json();
     return data.data || data.tools || [];
-  } catch {
+  } catch (err) {
+    const durationMs = Date.now() - startTime;
+    logAuditEntry('hivemind', 'hiveagent', endpoint, null, 'GET', null, false, err.message, durationMs);
     return generateDevAgentSuggestions(query);
   }
 }
