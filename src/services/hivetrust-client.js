@@ -2,6 +2,7 @@ import { pool, isPostgresEnabled } from './db.js';
 
 const HIVETRUST_API_URL = process.env.HIVETRUST_API_URL || 'https://hivetrust.onrender.com';
 const HIVE_INTERNAL_KEY = process.env.HIVE_INTERNAL_KEY || '';
+const HIVETRUST_API_KEY = process.env.HIVETRUST_API_KEY || HIVE_INTERNAL_KEY;
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
 /**
@@ -41,8 +42,8 @@ export async function verifyDID(did) {
   try {
     const res = await fetch(`${HIVETRUST_API_URL}${endpoint}`, {
       headers: {
-        'Authorization': `Bearer ${HIVE_INTERNAL_KEY}`,
-        'X-Hive-Internal-Key': HIVE_INTERNAL_KEY,
+        'Authorization': `Bearer ${HIVETRUST_API_KEY}`,
+        'X-API-Key': HIVETRUST_API_KEY,
       },
       signal: AbortSignal.timeout(5000),
     });
@@ -111,7 +112,7 @@ export function logTelemetry(did, action, metadata = {}) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Hive-Internal-Key': HIVE_INTERNAL_KEY,
+      'X-API-Key': HIVETRUST_API_KEY,
     },
     body: JSON.stringify({
       did,
@@ -141,7 +142,7 @@ export async function registerAgent(sessionId) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Hive-Internal-Key': HIVE_INTERNAL_KEY,
+        'X-API-Key': HIVETRUST_API_KEY,
       },
       body: JSON.stringify({
         session_id: sessionId,
