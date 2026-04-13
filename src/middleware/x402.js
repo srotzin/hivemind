@@ -20,8 +20,9 @@ const USDC_CONTRACT = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 const BASE_CHAIN_ID = 8453;
 
-// x402 facilitator (Coinbase CDP) — upgrade path for gasless EIP-3009 flow
-const X402_FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://api.cdp.coinbase.com/platform/v2/x402';
+// x402 facilitator — xpay (permissionless, gas-sponsored) or CDP (with keys)
+// Override with X402_FACILITATOR_URL env var to use CDP: https://api.cdp.coinbase.com/platform/v2/x402
+const X402_FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://facilitator.xpay.sh';
 
 /**
  * Verify a USDC transfer on Base L2 via public RPC.
