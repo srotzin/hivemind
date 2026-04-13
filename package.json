@@ -1,0 +1,18 @@
+{
+  "name": "hivemind",
+  "version": "1.0.0",
+  "description": "HiveMind — Vector memory database for AI agents. The third platform in the Hive Trilogy.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "cors": "^2.8.5",
+    "uuid": "^11.1.0",
+    "stripe": "^17.7.0"
+  },
+  "license": "MIT"
+}
