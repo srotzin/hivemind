@@ -121,12 +121,12 @@ app.get('/.well-known/hive-payments.json', (req, res) => {
         recipient: process.env.HIVE_PAYMENT_ADDRESS || '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18',
       },
       {
-        method: 'stripe_subscription',
-        description: 'Monthly subscription via Stripe',
+        method: 'usdc_subscription',
+        description: 'Monthly subscription via USDC on Base',
         tiers: [
-          { name: 'free', storage_mb: 10, global_hive_queries: 5, price_usd: 0 },
-          { name: 'pro', storage_mb: 1000, global_hive_queries: 500, price_usd: 29 },
-          { name: 'enterprise', storage_mb: 'unlimited', global_hive_queries: 'unlimited', price_usd: 'custom' },
+          { name: 'free', storage_mb: 10, global_hive_queries: 5, usdc_monthly: 0 },
+          { name: 'pro', storage_mb: 1000, global_hive_queries: 500, usdc_monthly: 29 },
+          { name: 'enterprise', storage_mb: 'unlimited', global_hive_queries: 'unlimited', usdc_monthly: 'custom' },
         ],
       },
     ],

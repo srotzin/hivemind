@@ -1,61 +1,30 @@
 /**
- * x402 Payment Required Middleware — PRODUCTION VERSION
+ * x402 Payment Required Middleware — USDC-ONLY PRODUCTION
  * 
  * Verifies payments via:
- * 1. Stripe subscription ID → verified against Stripe API
+ * 1. Internal key bypass (platform-to-platform calls only)
  * 2. On-chain USDC tx hash → verified against Base L2 via public RPC
- * 3. Internal key bypass (platform-to-platform calls only)
+ * 3. x402 protocol signature (PAYMENT-SIGNATURE header) → facilitator verification
  * 
- * NO dev-mode bypasses. NO passthrough. Every payment is verified.
+ * NO Stripe. NO human interfaces. Agents pay in USDC on Base. Period.
+ * 
+ * Ref: x402 Protocol — https://docs.x402.org
  */
 
 const HIVE_PAYMENT_ADDRESS = (process.env.HIVE_PAYMENT_ADDRESS || '').toLowerCase();
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const HIVE_INTERNAL_KEY = process.env.HIVE_INTERNAL_KEY || '';
 const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
-// USDC contract on Base L2
+
+// Base L2 constants
 const USDC_CONTRACT = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
+const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const BASE_CHAIN_ID = 8453;
+
+// x402 facilitator (Coinbase CDP) — upgrade path for gasless EIP-3009 flow
+const X402_FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://api.cdp.coinbase.com/platform/v2/x402';
 
 /**
- * Verify a Stripe subscription is active.
- */
-async function verifyStripeSubscription(subscriptionId) {
-  if (!STRIPE_SECRET_KEY || !STRIPE_SECRET_KEY.startsWith('sk_live_')) {
-    console.error('[x402] Stripe secret key not configured or not in live mode');
-    return { valid: false, reason: 'stripe_not_configured' };
-  }
-
-  try {
-    const res = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
-      headers: {
-        'Authorization': `Bearer ${STRIPE_SECRET_KEY}`,
-      },
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!res.ok) {
-      return { valid: false, reason: 'subscription_not_found' };
-    }
-
-    const sub = await res.json();
-    if (sub.status === 'active' || sub.status === 'trialing') {
-      return {
-        valid: true,
-        customer: sub.customer,
-        plan: sub.items?.data?.[0]?.price?.id,
-        status: sub.status,
-      };
-    }
-    return { valid: false, reason: `subscription_status_${sub.status}` };
-  } catch (err) {
-    console.error('[x402] Stripe verification error:', err.message);
-    return { valid: false, reason: 'stripe_error' };
-  }
-}
-
-/**
- * Verify a USDC transfer on Base L2.
- * Checks that the tx sent >= requiredAmount USDC to HIVE_PAYMENT_ADDRESS.
+ * Verify a USDC transfer on Base L2 via public RPC.
  */
 async function verifyOnChainPayment(txHash, requiredAmountUsdc) {
   if (!HIVE_PAYMENT_ADDRESS) {
@@ -64,7 +33,6 @@ async function verifyOnChainPayment(txHash, requiredAmountUsdc) {
   }
 
   try {
-    // Get transaction receipt
     const receiptRes = await fetch(BASE_RPC_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -82,19 +50,13 @@ async function verifyOnChainPayment(txHash, requiredAmountUsdc) {
       return { valid: false, reason: 'tx_not_found_or_failed' };
     }
 
-    // Look for USDC Transfer events in logs
-    // Transfer(address,address,uint256) topic = keccak256 of the event signature
-    const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-    
     for (const log of receipt.logs) {
       if (log.address.toLowerCase() !== USDC_CONTRACT.toLowerCase()) continue;
       if (log.topics[0] !== TRANSFER_TOPIC) continue;
 
-      // topics[2] is the recipient (padded to 32 bytes)
       const recipient = '0x' + log.topics[2].slice(26).toLowerCase();
       if (recipient !== HIVE_PAYMENT_ADDRESS) continue;
 
-      // data is the amount (USDC has 6 decimals)
       const amountRaw = parseInt(log.data, 16);
       const amountUsdc = amountRaw / 1_000_000;
 
@@ -116,7 +78,7 @@ async function verifyOnChainPayment(txHash, requiredAmountUsdc) {
 }
 
 /**
- * Production payment middleware.
+ * Production payment middleware — USDC on Base L2 only.
  * @param {number} priceUsdc - Required payment amount in USDC
  * @param {string} serviceName - Display name for the service
  */
@@ -130,24 +92,7 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
       return next();
     }
 
-    // 2. Stripe subscription verification
-    const subscriptionId = req.headers['x-subscription-id'];
-    if (subscriptionId) {
-      const result = await verifyStripeSubscription(subscriptionId);
-      if (result.valid) {
-        req.paymentVerified = true;
-        req.paymentSource = 'stripe';
-        req.subscriptionInfo = result;
-        return next();
-      }
-      return res.status(402).json({
-        status: '402 Payment Required',
-        error: `Subscription verification failed: ${result.reason}`,
-        service: serviceName,
-      });
-    }
-
-    // 3. On-chain USDC verification
+    // 2. On-chain USDC verification (direct tx hash)
     const paymentHash = req.headers['x-payment-hash'] || req.headers['x-402-tx'] || req.headers['x-payment-tx'];
     if (paymentHash) {
       const result = await verifyOnChainPayment(paymentHash, priceUsdc);
@@ -164,29 +109,116 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
       });
     }
 
-    // 4. No valid payment — return 402 with instructions
+    // 3. x402 protocol signature (from agents using official x402 SDK)
+    const paymentSignature = req.headers['payment-signature'];
+    if (paymentSignature) {
+      // Forward to facilitator for verification + settlement
+      try {
+        const verifyRes = await fetch(`${X402_FACILITATOR_URL}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paymentPayload: paymentSignature,
+            paymentRequirements: {
+              scheme: 'exact',
+              network: `eip155:${BASE_CHAIN_ID}`,
+              maxAmountRequired: String(Math.ceil(priceUsdc * 1_000_000)),
+              resource: req.originalUrl,
+              payTo: HIVE_PAYMENT_ADDRESS,
+            },
+          }),
+          signal: AbortSignal.timeout(15000),
+        });
+
+        if (verifyRes.ok) {
+          const verification = await verifyRes.json();
+          if (verification.valid || verification.isValid) {
+            req.paymentVerified = true;
+            req.paymentSource = 'x402_facilitator';
+            req.paymentInfo = verification;
+
+            // Settle the payment
+            fetch(`${X402_FACILITATOR_URL}/settle`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                paymentPayload: paymentSignature,
+                paymentRequirements: {
+                  scheme: 'exact',
+                  network: `eip155:${BASE_CHAIN_ID}`,
+                  maxAmountRequired: String(Math.ceil(priceUsdc * 1_000_000)),
+                  resource: req.originalUrl,
+                  payTo: HIVE_PAYMENT_ADDRESS,
+                },
+              }),
+            }).catch(err => console.error('[x402] Settlement error:', err.message));
+
+            return next();
+          }
+        }
+      } catch (err) {
+        console.error('[x402] Facilitator verification error:', err.message);
+      }
+
+      return res.status(402).json({
+        status: '402 Payment Required',
+        error: 'Payment signature verification failed',
+        service: serviceName,
+      });
+    }
+
+    // 4. No valid payment — return 402 with x402 protocol-compliant instructions
+    const paymentRequired = {
+      accepts: [
+        {
+          scheme: 'exact',
+          network: `eip155:${BASE_CHAIN_ID}`,
+          maxAmountRequired: String(Math.ceil(priceUsdc * 1_000_000)),
+          resource: req.originalUrl,
+          description: `${serviceName} — ${priceUsdc} USDC`,
+          mimeType: 'application/json',
+          payTo: HIVE_PAYMENT_ADDRESS,
+          maxTimeoutSeconds: 300,
+          asset: `eip155:${BASE_CHAIN_ID}/erc20:${USDC_CONTRACT}`,
+        },
+      ],
+    };
+
+    // Set x402 protocol headers
+    res.set({
+      'PAYMENT-REQUIRED': Buffer.from(JSON.stringify(paymentRequired)).toString('base64'),
+      'X-Payment-Amount': priceUsdc.toString(),
+      'X-Payment-Currency': 'USDC',
+      'X-Payment-Network': 'base',
+      'X-Payment-Chain-Id': BASE_CHAIN_ID.toString(),
+      'X-Payment-Address': HIVE_PAYMENT_ADDRESS || 'NOT_CONFIGURED',
+      'X-Payment-USDC-Contract': USDC_CONTRACT,
+    });
+
     return res.status(402).json({
       status: '402 Payment Required',
       service: serviceName,
+      protocol: 'x402',
       payment: {
         amount_usdc: priceUsdc,
         currency: 'USDC',
-        network: 'Base L2',
-        recipient_address: HIVE_PAYMENT_ADDRESS || 'NOT_CONFIGURED',
-        supported_methods: ['x402_onchain', 'stripe_subscription'],
+        network: 'base',
+        chain_id: BASE_CHAIN_ID,
+        recipient: HIVE_PAYMENT_ADDRESS || 'NOT_CONFIGURED',
+        usdc_contract: USDC_CONTRACT,
+        accepted_methods: ['x402_signature', 'onchain_tx_hash'],
       },
-      headers_to_include: {
-        'X-Payment-Hash': '<USDC transaction hash on Base L2>',
-        'X-Subscription-Id': '<Active Stripe subscription ID>',
-      },
-      x402_flow: {
-        step_1: `Send ${priceUsdc} USDC to ${HIVE_PAYMENT_ADDRESS || 'WALLET_ADDRESS'} on Base L2`,
-        step_2: 'Include the transaction hash in the X-Payment-Hash header',
-        step_3: 'Retry this request with the payment header',
-      },
-      stripe_flow: {
-        step_1: 'Subscribe at https://hivetrustiq.com/subscribe',
-        step_2: 'Include subscription ID in X-Subscription-Id header',
+      how_to_pay: {
+        x402_flow: {
+          step_1: 'Use an x402-compatible client or wallet (e.g. @x402/fetch)',
+          step_2: 'The client will automatically construct and sign a USDC payment',
+          step_3: 'Retry with the PAYMENT-SIGNATURE header — settlement is automatic',
+        },
+        direct_flow: {
+          step_1: `Send ${priceUsdc} USDC to ${HIVE_PAYMENT_ADDRESS} on Base (chain ID ${BASE_CHAIN_ID})`,
+          step_2: 'Include the transaction hash in the X-Payment-Hash header',
+          step_3: 'Retry this request — payment is verified on-chain automatically',
+        },
       },
     });
   };
