@@ -138,7 +138,7 @@ app.get('/.well-known/hive-payments.json', (req, res) => {
     trifecta: {
       hivetrust: process.env.HIVETRUST_API_URL || 'https://hivetrust.onrender.com',
       hiveagent: process.env.HIVEAGENT_API_URL || 'https://hiveagentiq.com',
-      hivemind: `http://localhost:${PORT}`,
+      hivemind: process.env.HIVEMIND_PUBLIC_URL || `https://hivemind-1-52cw.onrender.com`,
     },
   });
 });

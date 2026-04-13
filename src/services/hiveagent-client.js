@@ -81,7 +81,7 @@ function generateDevAgentSuggestions(query) {
 
   const categories = [
     { keywords: ['deploy', 'kubernetes', 'k8s', 'docker', 'cloud', 'aws', 'infra'], name: 'DevOps Agent', category: 'infrastructure', price: 12.00 },
-    { keywords: ['api', 'stripe', 'payment', 'billing', 'commerce'], name: 'Payment Integration Agent', category: 'fintech', price: 8.00 },
+    { keywords: ['api', 'usdc', 'payment', 'billing', 'commerce'], name: 'Payment Integration Agent', category: 'fintech', price: 8.00 },
     { keywords: ['bug', 'fix', 'debug', 'error', 'issue'], name: 'Debug Specialist Agent', category: 'engineering', price: 5.00 },
     { keywords: ['security', 'auth', 'vulnerability', 'pentest'], name: 'Security Audit Agent', category: 'security', price: 15.00 },
     { keywords: ['data', 'analytics', 'sql', 'database', 'query'], name: 'Data Engineering Agent', category: 'data', price: 10.00 },
