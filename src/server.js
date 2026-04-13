@@ -1,3 +1,12 @@
+import * as Sentry from '@sentry/node';
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || '',
+  environment: process.env.NODE_ENV || 'development',
+  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+  enabled: !!process.env.SENTRY_DSN,
+});
+
 import express from 'express';
 import cors from 'cors';
 import memoryRoutes from './routes/memory.js';
@@ -8,6 +17,8 @@ import { getEmbeddingMode, DIMENSIONS } from './services/embedding.js';
 import vectorEngine from './services/vector-engine.js';
 import { initDatabase, pool, isPostgresEnabled } from './services/db.js';
 import { rateLimit } from './middleware/rate-limit.js';
+import { sendAlert } from './services/alerts.js';
+import { startSagaWorker } from './services/saga-orchestrator.js';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -162,9 +173,19 @@ app.use((req, res) => {
   });
 });
 
-// ─── Sentry-Compatible Error Handler ────────────────────────────────
+// ─── Sentry Error Handler (must be before generic handler) ──────────
+
+Sentry.setupExpressErrorHandler(app);
+
+// ─── Global Error Handler ───────────────────────────────────────────
 
 app.use((err, req, res, _next) => {
+  Sentry.captureException(err);
+  sendAlert('critical', 'HiveMind', `Unhandled error: ${err.message}`, {
+    path: req.path,
+    method: req.method,
+  });
+
   const errorPayload = {
     success: false,
     error: 'Internal Server Error',
@@ -202,6 +223,7 @@ async function start() {
   } catch (err) {
     console.error('  Database initialization failed:', err.message);
     console.log('  Database:   Falling back to in-memory storage');
+    sendAlert('critical', 'HiveMind', 'Database connection failed', { error: err.message });
   }
 
   app.listen(PORT, () => {
@@ -216,6 +238,15 @@ async function start() {
     // Start the lifecycle daemon
     lifecycleDaemon.start();
     console.log('  Lifecycle daemon started (60s interval)\n');
+
+    // Start the saga orchestrator worker
+    startSagaWorker();
+
+    // Send startup alert to Discord
+    sendAlert('info', 'HiveMind', `Service started on port ${PORT}`, {
+      version: '1.0.0',
+      env: process.env.NODE_ENV || 'development',
+    });
   });
 }
 
