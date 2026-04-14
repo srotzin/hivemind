@@ -6,6 +6,53 @@ import memoryStore from '../services/memory-store.js';
 import { pool, isPostgresEnabled } from '../services/db.js';
 import { TRIFECTA_HANDSHAKE } from '../services/trifecta-handshake.js';
 
+// Self-healing: ensure global_hive_memories table exists
+(async () => {
+  if (!isPostgresEnabled()) return;
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS hivemind.global_hive_memories (
+          memory_id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          category TEXT NOT NULL,
+          content TEXT NOT NULL,
+          preview TEXT,
+          price_usdc REAL DEFAULT 0,
+          author_did TEXT DEFAULT 'did:hive:hivemind-system',
+          tags TEXT,
+          citations INTEGER DEFAULT 0,
+          purchases INTEGER DEFAULT 0,
+          published INTEGER DEFAULT 1,
+          published_at TEXT,
+          seeded INTEGER DEFAULT 0
+        )
+      `);
+      await client.query('CREATE INDEX IF NOT EXISTS idx_ghm_category ON hivemind.global_hive_memories(category)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_ghm_price ON hivemind.global_hive_memories(price_usdc)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_ghm_citations ON hivemind.global_hive_memories(citations)');
+
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS hivemind.global_hive_citations (
+          citation_id TEXT PRIMARY KEY,
+          memory_id TEXT NOT NULL,
+          citing_did TEXT NOT NULL,
+          context TEXT,
+          cited_at TEXT
+        )
+      `);
+      await client.query('CREATE INDEX IF NOT EXISTS idx_citations_memory ON hivemind.global_hive_citations(memory_id)');
+
+      console.log('[global-hive] Self-healing: global_hive_memories table ensured');
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('[global-hive] Self-healing migration failed:', err.message);
+  }
+})();
+
 const router = Router();
 
 const HIVEMIND_SERVICE_KEY = process.env.HIVEMIND_SERVICE_KEY || process.env.HIVE_INTERNAL_KEY || '';
