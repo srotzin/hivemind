@@ -305,7 +305,7 @@ function getAgentCard() {
     url: 'https://hivemind-1-52cw.onrender.com',
     version: '1.0.0',
     provider: { organization: 'Hive Agent IQ', url: 'https://www.hiveagentiq.com' },
-    capabilities: { streaming: false, pushNotifications: false },
+    capabilities: { streaming: false, pushNotifications: false, stateTransitionHistory: false },
     defaultInputModes: ['application/json'],
     defaultOutputModes: ['application/json'],
     skills: [
@@ -316,6 +316,7 @@ function getAgentCard() {
         tags: ['receipts', 'audit', 'hash-chain', 'compliance'],
         inputModes: ['application/json'],
         outputModes: ['application/json'],
+        examples: [],
       },
       {
         id: 'clearinghouse',
@@ -324,6 +325,7 @@ function getAgentCard() {
         tags: ['clearing', 'settlement', 'matching'],
         inputModes: ['application/json'],
         outputModes: ['application/json'],
+        examples: [],
       },
       {
         id: 'knowledge-query',
@@ -332,6 +334,7 @@ function getAgentCard() {
         tags: ['knowledge', 'memory', 'intelligence', 'trending'],
         inputModes: ['application/json'],
         outputModes: ['application/json'],
+        examples: [],
       },
     ],
     authentication: {
