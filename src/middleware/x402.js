@@ -51,7 +51,7 @@ async function isPaymentSpent(txHash) {
 /**
  * Record a payment tx hash as spent.
  */
-async function markPaymentSpent(txHash, amountUsdc, endpoint, did) {
+async function recordSpentPayment(txHash, amountUsdc, endpoint, did) {
   spentPaymentsMemory.add(txHash);
   if (isPostgresEnabled()) {
     try {
@@ -151,7 +151,7 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
       const result = await verifyOnChainPayment(paymentHash, priceUsdc);
       if (result.valid) {
         // Record spent payment
-        await markPaymentSpent(paymentHash, result.amount_usdc, req.originalUrl, req.agentDid);
+        await recordSpentPayment(paymentHash, result.amount_usdc, req.originalUrl, req.agentDid);
         req.paymentVerified = true;
         req.paymentSource = 'onchain';
         req.paymentInfo = result;
