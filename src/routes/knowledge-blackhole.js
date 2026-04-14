@@ -4,6 +4,29 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
+// ─── Self-healing migration fallback ─────────────────────────────────
+let migrationRun = false;
+async function ensureMigration() {
+  if (migrationRun) return;
+  migrationRun = true;
+  const client = await pool.connect();
+  try {
+    await client.query(`ALTER TABLE hivemind.global_hive_listings ADD COLUMN IF NOT EXISTS title TEXT`);
+    await client.query(`ALTER TABLE hivemind.global_hive_listings ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
+    await client.query(`ALTER TABLE hivemind.global_hive_listings ADD COLUMN IF NOT EXISTS published BOOLEAN DEFAULT true`);
+    await client.query(`ALTER TABLE hivemind.global_hive_listings ADD COLUMN IF NOT EXISTS citations INTEGER DEFAULT 0`);
+    await client.query(`CREATE TABLE IF NOT EXISTS hivemind.global_hive_citations (
+      id SERIAL PRIMARY KEY, node_id TEXT NOT NULL, citing_did TEXT NOT NULL, context TEXT, created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await client.query('CREATE INDEX IF NOT EXISTS idx_citations_node ON hivemind.global_hive_citations(node_id)');
+    console.log('[knowledge-blackhole] Self-healing migration complete');
+  } catch (err) {
+    console.error('[knowledge-blackhole] Migration error:', err.message);
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * GET /v1/global_hive/read/:node_id — PUBLIC (no auth)
  * Free memories: return full content
@@ -16,6 +39,8 @@ router.get('/read/:node_id', async (req, res) => {
     if (!isPostgresEnabled()) {
       return res.status(503).json({ success: false, error: 'Database not available.' });
     }
+
+    await ensureMigration();
 
     const result = await pool.query(
       `SELECT mn.node_id, mn.content, mn.semantic_tags, mn.created_at,
@@ -92,6 +117,8 @@ router.get('/categories', async (req, res) => {
       return res.status(503).json({ success: false, error: 'Database not available.' });
     }
 
+    await ensureMigration();
+
     const result = await pool.query(
       `SELECT category, COUNT(*)::int AS count, ROUND(AVG(price_usdc), 4) AS avg_price
        FROM hivemind.global_hive_listings
@@ -118,6 +145,8 @@ router.get('/trending', async (req, res) => {
     if (!isPostgresEnabled()) {
       return res.status(503).json({ success: false, error: 'Database not available.' });
     }
+
+    await ensureMigration();
 
     const result = await pool.query(
       `SELECT mn.node_id, gl.title, gl.category, gl.price_usdc, gl.citations,
@@ -156,6 +185,8 @@ router.post('/cite/:node_id', async (req, res) => {
     if (!isPostgresEnabled()) {
       return res.status(503).json({ success: false, error: 'Database not available.' });
     }
+
+    await ensureMigration();
 
     // Verify node exists
     const nodeCheck = await pool.query(
@@ -217,6 +248,8 @@ router.post('/seed', async (req, res) => {
     if (!isPostgresEnabled()) {
       return res.status(503).json({ success: false, error: 'Database not available.' });
     }
+
+    await ensureMigration();
 
     const authorDid = 'did:hive:hivemind-system';
     const results = [];
