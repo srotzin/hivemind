@@ -11,9 +11,14 @@
  * Ref: x402 Protocol — https://docs.x402.org
  */
 
+import { pool, isPostgresEnabled } from '../services/db.js';
+
 const HIVE_PAYMENT_ADDRESS = (process.env.HIVE_PAYMENT_ADDRESS || '').toLowerCase();
-const HIVE_INTERNAL_KEY = process.env.HIVE_INTERNAL_KEY || '';
+const HIVEMIND_SERVICE_KEY = process.env.HIVEMIND_SERVICE_KEY || process.env.HIVE_INTERNAL_KEY || '';
 const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
+
+// In-memory fallback for replay protection when PostgreSQL is unavailable
+const spentPaymentsMemory = new Set();
 
 // Base L2 constants
 const USDC_CONTRACT = '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913';
@@ -23,6 +28,44 @@ const BASE_CHAIN_ID = 8453;
 // x402 facilitator — xpay (permissionless, gas-sponsored) or CDP (with keys)
 // Override with X402_FACILITATOR_URL env var to use CDP: https://api.cdp.coinbase.com/platform/v2/x402
 const X402_FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://facilitator.xpay.sh';
+
+/**
+ * Check if a payment tx hash has already been spent.
+ */
+async function isPaymentSpent(txHash) {
+  if (spentPaymentsMemory.has(txHash)) return true;
+  if (isPostgresEnabled()) {
+    try {
+      const result = await pool.query(
+        'SELECT 1 FROM public.spent_payments WHERE tx_hash = $1',
+        [txHash]
+      );
+      return result.rows.length > 0;
+    } catch {
+      // Fall through to memory-only check
+    }
+  }
+  return false;
+}
+
+/**
+ * Record a payment tx hash as spent.
+ */
+async function markPaymentSpent(txHash, amountUsdc, endpoint, did) {
+  spentPaymentsMemory.add(txHash);
+  if (isPostgresEnabled()) {
+    try {
+      await pool.query(
+        `INSERT INTO public.spent_payments (tx_hash, amount_usdc, endpoint, did)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT DO NOTHING`,
+        [txHash, amountUsdc, endpoint, did]
+      );
+    } catch (err) {
+      console.error('[x402] Failed to record spent payment:', err.message);
+    }
+  }
+}
 
 /**
  * Verify a USDC transfer on Base L2 via public RPC.
@@ -87,7 +130,7 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
   return async (req, res, next) => {
     // 1. Internal key bypass (platform-to-platform calls)
     const internalKey = req.headers['x-hive-internal-key'] || req.headers['x-api-key'];
-    if (HIVE_INTERNAL_KEY && internalKey === HIVE_INTERNAL_KEY) {
+    if (HIVEMIND_SERVICE_KEY && internalKey === HIVEMIND_SERVICE_KEY) {
       req.paymentVerified = true;
       req.paymentSource = 'internal';
       return next();
@@ -96,8 +139,19 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
     // 2. On-chain USDC verification (direct tx hash)
     const paymentHash = req.headers['x-payment-hash'] || req.headers['x-402-tx'] || req.headers['x-payment-tx'];
     if (paymentHash) {
+      // Replay protection: reject already-spent tx hashes
+      if (await isPaymentSpent(paymentHash)) {
+        return res.status(409).json({
+          status: '409 Conflict',
+          error: 'Payment transaction has already been used',
+          tx_hash: paymentHash,
+        });
+      }
+
       const result = await verifyOnChainPayment(paymentHash, priceUsdc);
       if (result.valid) {
+        // Record spent payment
+        await markPaymentSpent(paymentHash, result.amount_usdc, req.originalUrl, req.agentDid);
         req.paymentVerified = true;
         req.paymentSource = 'onchain';
         req.paymentInfo = result;

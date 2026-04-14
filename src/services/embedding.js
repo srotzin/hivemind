@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const DEV_DIMENSIONS = 128;
-const PROD_DIMENSIONS = 1536;
+const PROD_DIMENSIONS = 128;
 
 export const DIMENSIONS = OPENAI_API_KEY ? PROD_DIMENSIONS : DEV_DIMENSIONS;
 
@@ -50,6 +50,7 @@ async function openaiEmbed(text) {
     body: JSON.stringify({
       model: 'text-embedding-3-small',
       input: text,
+      dimensions: 128,
     }),
   });
 
@@ -67,7 +68,12 @@ async function openaiEmbed(text) {
  */
 export async function embed(text) {
   if (OPENAI_API_KEY) {
-    return openaiEmbed(text);
+    try {
+      return await openaiEmbed(text);
+    } catch (err) {
+      console.error('[embedding] OpenAI failed, falling back to hashEmbed:', err.message);
+      return hashEmbed(text);
+    }
   }
   return hashEmbed(text);
 }
