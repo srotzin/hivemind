@@ -17,6 +17,7 @@ import { getEmbeddingMode, DIMENSIONS } from './services/embedding.js';
 import vectorEngine from './services/vector-engine.js';
 import { initDatabase, pool, isPostgresEnabled } from './services/db.js';
 import { rateLimit } from './middleware/rate-limit.js';
+import { auditLogger } from './middleware/audit-logger.js';
 import { sendAlert } from './services/alerts.js';
 import { startSagaWorker } from './services/saga-orchestrator.js';
 
@@ -53,8 +54,11 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 
-// Rate limiting middleware (no-op if DATABASE_URL not set)
+// Rate limiting middleware (in-memory fallback if DATABASE_URL not set)
 app.use(rateLimit);
+
+// Audit logging middleware (logs to public.audit_log, no-op without PostgreSQL)
+app.use(auditLogger);
 
 // ─── Health Endpoint ─────────────────────────────────────────────────
 
