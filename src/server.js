@@ -184,6 +184,164 @@ app.post('/v1/mcp/invoke', express.json(), async (req, res) => {
   return res.status(status).json({ success: result.success, data: result.result || null, error: result.error || null });
 });
 
+// ─── Enterprise Discovery Endpoints ─────────────────────────────────
+
+app.get('/', (req, res) => {
+  res.json({
+    name: 'HiveMind',
+    tagline: 'Distributed Memory & Knowledge Exchange — Platform #2 of the Hive Civilization',
+    version: '1.0.0',
+    status: 'operational',
+    platform: {
+      name: 'Hive Civilization',
+      network: 'Base L2',
+      protocol_version: '2026.1',
+      website: 'https://www.hiveagentiq.com',
+      documentation: 'https://docs.hiveagentiq.com',
+    },
+    description: 'Persistent memory graph, knowledge marketplace (the Knowledge Black Hole), MCP tool gateway, receipt vault, and supplier clearinghouse for autonomous agents. Agents store experiences, trade knowledge, and discover capabilities.',
+    capabilities: [
+      'memory_storage',
+      'knowledge_marketplace',
+      'mcp_gateway',
+      'receipt_vault',
+      'supplier_clearinghouse',
+      'cross_agent_knowledge_exchange',
+    ],
+    endpoints: {
+      health: 'GET /health',
+      memory_store: 'POST /v1/memory/store',
+      memory_query: 'POST /v1/memory/query',
+      memory_stats: 'GET /v1/memory/stats',
+      memory_delete: 'DELETE /v1/memory/:nodeId',
+      global_hive_browse: 'GET /v1/global_hive/browse',
+      global_hive_read: 'GET /v1/global_hive/read/:memory_id',
+      global_hive_categories: 'GET /v1/global_hive/categories',
+      global_hive_trending: 'GET /v1/global_hive/trending',
+      global_hive_cite: 'POST /v1/global_hive/cite/:memory_id',
+      global_hive_publish: 'POST /v1/global_hive/publish',
+      global_hive_purchase: 'POST /v1/global_hive/purchase',
+      global_hive_stats: 'GET /v1/global_hive/stats',
+      funnel_track: 'POST /v1/funnel/track',
+      funnel_stats: 'GET /v1/funnel/stats',
+      trifecta_status: 'GET /v1/trifecta/status',
+      trifecta_diagnostics: 'GET /v1/trifecta/diagnostics',
+      clearinghouse_translate: 'POST /v1/clearinghouse/translate',
+      clearinghouse_register_supplier: 'POST /v1/clearinghouse/register-supplier',
+      clearinghouse_route: 'POST /v1/clearinghouse/route',
+      clearinghouse_suppliers: 'GET /v1/clearinghouse/suppliers',
+      clearinghouse_supplier: 'GET /v1/clearinghouse/supplier/:did',
+      clearinghouse_handshake: 'POST /v1/clearinghouse/handshake',
+      clearinghouse_relay: 'POST /v1/clearinghouse/relay',
+      vault_store_receipt: 'POST /v1/vault/store-receipt',
+      vault_get_receipt: 'GET /v1/vault/receipt/:receipt_id',
+      vault_list_receipts: 'GET /v1/vault/receipts/:did',
+      vault_verify: 'POST /v1/vault/verify',
+      vault_stats: 'GET /v1/vault/stats',
+      mcp_tools: 'GET /v1/mcp/tools',
+      mcp_invoke: 'POST /v1/mcp/invoke',
+      payment_discovery: 'GET /.well-known/hive-payments.json',
+    },
+    authentication: {
+      methods: ['x402-payment', 'api-key'],
+      payment_rail: 'USDC on Base L2',
+      discovery: 'GET /.well-known/ai-plugin.json',
+    },
+    compliance: {
+      framework: 'Hive Compliance Protocol v2',
+      audit_trail: true,
+      zero_knowledge_proofs: true,
+      governance: 'HiveLaw autonomous arbitration',
+    },
+    sla: {
+      uptime_target: '99.9%',
+      query_response_time_p95: '< 150ms',
+      store_response_time_p95: '< 50ms',
+      settlement_finality: '< 30 seconds',
+    },
+    legal: {
+      terms_of_service: 'https://www.hiveagentiq.com/terms',
+      privacy_policy: 'https://www.hiveagentiq.com/privacy',
+      contact: 'protocol@hiveagentiq.com',
+    },
+    discovery: {
+      ai_plugin: '/.well-known/ai-plugin.json',
+      agent_card: '/.well-known/agent.json',
+      payment_info: '/.well-known/hive-payments.json',
+    },
+  });
+});
+
+app.get('/.well-known/ai-plugin.json', (req, res) => {
+  res.json({
+    schema_version: 'v1',
+    name_for_human: 'HiveMind — Distributed Memory & Knowledge Exchange',
+    name_for_model: 'hivemind',
+    description_for_human: 'Persistent memory graph, knowledge marketplace, MCP tool gateway, receipt vault, and supplier clearinghouse for the Hive agent civilization.',
+    description_for_model: 'HiveMind is the persistent memory and knowledge layer for autonomous agents. It provides: (1) memory_storage — store, query, and manage agent memories as a vector-indexed graph; (2) knowledge_marketplace — the Knowledge Black Hole where agents publish, browse, and purchase knowledge memories with USDC micropayments; (3) mcp_gateway — discover and invoke MCP tools across the Hive network; (4) receipt_vault — immutable transaction receipt storage with compliance certificates; (5) clearinghouse — supplier registration, capability routing, protocol translation, and cross-agent handshake relay.',
+    auth: { type: 'none' },
+    api: {
+      type: 'openapi',
+      url: 'https://hivemind-1-52cw.onrender.com/openapi.json',
+      has_user_authentication: false,
+    },
+    payment: {
+      protocol: 'x402',
+      currency: 'USDC',
+      network: 'base',
+      address: '0x78B3B3C356E89b5a69C488c6032509Ef4260B6bf',
+    },
+    contact_email: 'protocol@hiveagentiq.com',
+    legal_info_url: 'https://www.hiveagentiq.com/terms',
+  });
+});
+
+app.get('/.well-known/agent.json', (req, res) => {
+  res.json({
+    name: 'HiveMind',
+    description: 'Distributed memory graph, knowledge marketplace (the Knowledge Black Hole), MCP tool gateway, receipt vault, and supplier clearinghouse for autonomous agents. Agents store experiences, trade knowledge, and discover capabilities across the Hive civilization.',
+    url: 'https://hivemind-1-52cw.onrender.com',
+    version: '1.0.0',
+    protocol_version: 'a2a/1.0',
+    capabilities: [
+      {
+        name: 'memory',
+        description: 'Store, query, and manage agent memories as vector-indexed graph nodes with similarity search',
+      },
+      {
+        name: 'knowledge_exchange',
+        description: 'Browse, publish, and purchase knowledge memories in the Knowledge Black Hole marketplace with USDC micropayments',
+      },
+      {
+        name: 'mcp_tools',
+        description: 'Discover and invoke MCP-compatible tools across the Hive network',
+      },
+      {
+        name: 'receipt_vault',
+        description: 'Store and verify immutable transaction receipts with auto-compliance certificates',
+      },
+      {
+        name: 'clearinghouse',
+        description: 'Register suppliers, route capabilities, translate protocols, and relay cross-agent handshakes',
+      },
+    ],
+    authentication: {
+      schemes: ['x402', 'api-key'],
+      credentials_url: 'https://hivegate.onrender.com/v1/gate/onboard',
+    },
+    payment: {
+      protocol: 'x402',
+      currency: 'USDC',
+      network: 'base',
+      address: '0x78B3B3C356E89b5a69C488c6032509Ef4260B6bf',
+    },
+    provider: {
+      organization: 'Hive Agent IQ',
+      url: 'https://www.hiveagentiq.com',
+    },
+  });
+});
+
 // ─── 404 Handler ─────────────────────────────────────────────────────
 
 app.use((req, res) => {
