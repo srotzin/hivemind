@@ -13,6 +13,7 @@ import memoryRoutes from './routes/memory.js';
 import globalHiveRoutes from './routes/global-hive.js';
 import trifectaRoutes from './routes/trifecta.js';
 import clearinghouseRoutes from './routes/clearinghouse.js';
+import vaultRoutes from './routes/vault.js';
 import { getMCPTools, invokeMCPTool } from './services/mcp-tools.js';
 import lifecycleDaemon from './services/lifecycle-daemon.js';
 import { getEmbeddingMode, DIMENSIONS } from './services/embedding.js';
@@ -141,6 +142,12 @@ app.get('/.well-known/hive-payments.json', (req, res) => {
       settlement: 'zero-treasury (instant USDC split)',
       pricing_model: 'autonomous-dutch-auction',
     },
+    receipt_vault: {
+      fee_per_receipt: 0.05,
+      currency: 'USDC',
+      description: 'Immutable transaction receipt + auto-compliance certificate',
+      margin: '95%',
+    },
     trifecta: {
       hivetrust: process.env.HIVETRUST_API_URL || 'https://hivetrust.onrender.com',
       hiveagent: process.env.HIVEAGENT_API_URL || 'https://hiveagentiq.com',
@@ -155,6 +162,7 @@ app.use('/v1/memory', memoryRoutes);
 app.use('/v1/global_hive', globalHiveRoutes);
 app.use('/v1/trifecta', trifectaRoutes);
 app.use('/v1/clearinghouse', clearinghouseRoutes);
+app.use('/v1/vault', vaultRoutes);
 
 // ─── MCP Tool Discovery & Invocation ────────────────────────────────
 
@@ -167,7 +175,7 @@ app.post('/v1/mcp/invoke', express.json(), async (req, res) => {
   if (!tool) {
     return res.status(400).json({ success: false, error: 'tool name is required.' });
   }
-  const result = invokeMCPTool(tool, toolArgs || {});
+  const result = await invokeMCPTool(tool, toolArgs || {});
   const status = result.success ? 200 : 400;
   return res.status(status).json({ success: result.success, data: result.result || null, error: result.error || null });
 });
@@ -198,6 +206,11 @@ app.use((req, res) => {
       clearinghouse_supplier: 'GET /v1/clearinghouse/supplier/:did',
       clearinghouse_handshake: 'POST /v1/clearinghouse/handshake',
       clearinghouse_relay: 'POST /v1/clearinghouse/relay',
+      vault_store_receipt: 'POST /v1/vault/store-receipt',
+      vault_get_receipt: 'GET /v1/vault/receipt/:receipt_id',
+      vault_list_receipts: 'GET /v1/vault/receipts/:did',
+      vault_verify: 'POST /v1/vault/verify',
+      vault_stats: 'GET /v1/vault/stats',
       mcp_tools: 'GET /v1/mcp/tools',
       mcp_invoke: 'POST /v1/mcp/invoke',
       payment_discovery: 'GET /.well-known/hive-payments.json',

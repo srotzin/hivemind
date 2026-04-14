@@ -162,6 +162,30 @@ export async function initDatabase() {
       )
     `);
 
+    // ─── Receipt Vault ────────────────────────────────────────────────
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS receipt_vault (
+        receipt_id TEXT PRIMARY KEY,
+        transaction_id TEXT NOT NULL,
+        source_service TEXT NOT NULL,
+        amount_usdc NUMERIC(12,4) NOT NULL,
+        payer_did TEXT NOT NULL,
+        payee_did TEXT,
+        endpoint TEXT,
+        payload_hash TEXT,
+        receipt_hash TEXT NOT NULL,
+        compliance_cert_id TEXT,
+        metadata JSONB DEFAULT '{}',
+        stored_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await client.query('CREATE INDEX IF NOT EXISTS idx_vault_payer ON receipt_vault(payer_did)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_vault_payee ON receipt_vault(payee_did)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_vault_service ON receipt_vault(source_service)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_vault_stored ON receipt_vault(stored_at)');
+
     console.log('  PostgreSQL schema initialized successfully');
     return true;
   } finally {

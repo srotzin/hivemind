@@ -10,6 +10,7 @@ import {
   registerSupplier,
   routeRequest,
 } from './protocol-translator.js';
+import { storeReceipt } from './receipt-vault.js';
 
 const TOOLS = [
   {
@@ -105,6 +106,48 @@ const TOOLS = [
       required: ['supplier_did', 'name', 'protocol', 'capabilities', 'endpoint_url'],
     },
   },
+  {
+    name: 'hivemind_store_receipt',
+    description: 'Store an immutable cryptographic receipt of a transaction in the Receipt Vault. Auto-issues a compliance certificate via HiveLaw. Wraps POST /v1/vault/store-receipt. Costs $0.05 USDC.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        transaction_id: {
+          type: 'string',
+          description: 'Unique identifier for the transaction being receipted.',
+        },
+        source_service: {
+          type: 'string',
+          description: 'Service that originated the transaction (e.g., "hivemind", "hivelaw", "hiveagent").',
+        },
+        amount_usdc: {
+          type: 'number',
+          description: 'Transaction amount in USDC.',
+        },
+        payer_did: {
+          type: 'string',
+          description: 'DID of the payer (e.g., did:hive:agent_123).',
+        },
+        payee_did: {
+          type: 'string',
+          description: 'DID of the payee (optional).',
+        },
+        endpoint: {
+          type: 'string',
+          description: 'API endpoint where the transaction occurred (optional).',
+        },
+        payload_hash: {
+          type: 'string',
+          description: 'SHA-256 hash of the transaction payload (optional).',
+        },
+        metadata: {
+          type: 'object',
+          description: 'Additional metadata to store with the receipt (optional).',
+        },
+      },
+      required: ['transaction_id', 'source_service', 'amount_usdc', 'payer_did'],
+    },
+  },
 ];
 
 /**
@@ -117,7 +160,7 @@ export function getMCPTools() {
 /**
  * Invoke an MCP tool by name with given arguments.
  */
-export function invokeMCPTool(toolName, args) {
+export async function invokeMCPTool(toolName, args) {
   switch (toolName) {
     case 'hivemind_translate_protocol': {
       const translated = translateToHive(args.message || {}, {});
@@ -144,6 +187,19 @@ export function invokeMCPTool(toolName, args) {
         payment_methods: args.payment_methods || [],
       });
       return { success: true, result: record };
+    }
+    case 'hivemind_store_receipt': {
+      const receipt = await storeReceipt({
+        transaction_id: args.transaction_id,
+        source_service: args.source_service,
+        amount_usdc: args.amount_usdc,
+        payer_did: args.payer_did,
+        payee_did: args.payee_did,
+        endpoint: args.endpoint,
+        payload_hash: args.payload_hash,
+        metadata: args.metadata,
+      });
+      return { success: true, result: receipt };
     }
     default:
       return { success: false, error: `Unknown tool: ${toolName}`, available_tools: TOOLS.map(t => t.name) };
