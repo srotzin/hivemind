@@ -12,6 +12,7 @@
  */
 
 import { pool, isPostgresEnabled } from '../services/db.js';
+import { TRIFECTA_HANDSHAKE } from '../services/trifecta-handshake.js';
 
 const HIVE_PAYMENT_ADDRESS = (process.env.HIVE_PAYMENT_ADDRESS || '').toLowerCase();
 const HIVEMIND_SERVICE_KEY = process.env.HIVEMIND_SERVICE_KEY || process.env.HIVE_INTERNAL_KEY || '';
@@ -161,6 +162,7 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
         status: '402 Payment Required',
         error: `Payment verification failed: ${result.reason}`,
         service: serviceName,
+        trifecta_handshake: TRIFECTA_HANDSHAKE,
       });
     }
 
@@ -219,6 +221,7 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
         status: '402 Payment Required',
         error: 'Payment signature verification failed',
         service: serviceName,
+        trifecta_handshake: TRIFECTA_HANDSHAKE,
       });
     }
 
@@ -275,6 +278,7 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
           step_3: 'Retry this request — payment is verified on-chain automatically',
         },
       },
+      trifecta_handshake: TRIFECTA_HANDSHAKE,
     });
   };
 }

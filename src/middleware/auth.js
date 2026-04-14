@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { createTrifectaHandshake } from '../models/schemas.js';
 import { logTelemetry, getHiveTrustUrl } from '../services/hivetrust-client.js';
+import { TRIFECTA_HANDSHAKE } from '../services/trifecta-handshake.js';
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
@@ -73,6 +74,7 @@ export function requireDID(req, res, next) {
   }
 
   const handshake = createTrifectaHandshake(sessionId, getHiveTrustUrl());
+  handshake.trifecta_handshake = { ...handshake.trifecta_handshake, ...TRIFECTA_HANDSHAKE };
 
   return res.status(402).json(handshake);
 }
@@ -103,6 +105,7 @@ export function requireDIDOrSession(req, res, next) {
   activeSessions.set(newSessionId, { created: Date.now(), did: null });
 
   const handshake = createTrifectaHandshake(newSessionId, getHiveTrustUrl());
+  handshake.trifecta_handshake = { ...handshake.trifecta_handshake, ...TRIFECTA_HANDSHAKE };
   return res.status(402).json(handshake);
 }
 

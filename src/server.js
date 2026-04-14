@@ -15,6 +15,7 @@ import trifectaRoutes from './routes/trifecta.js';
 import clearinghouseRoutes from './routes/clearinghouse.js';
 import vaultRoutes from './routes/vault.js';
 import knowledgeBlackholeRoutes from './routes/knowledge-blackhole.js';
+import funnelRoutes from './routes/funnel.js';
 import { getMCPTools, invokeMCPTool } from './services/mcp-tools.js';
 import lifecycleDaemon from './services/lifecycle-daemon.js';
 import { getEmbeddingMode, DIMENSIONS } from './services/embedding.js';
@@ -165,6 +166,7 @@ app.use('/v1/global_hive', knowledgeBlackholeRoutes);
 app.use('/v1/trifecta', trifectaRoutes);
 app.use('/v1/clearinghouse', clearinghouseRoutes);
 app.use('/v1/vault', vaultRoutes);
+app.use('/v1/funnel', funnelRoutes);
 
 // ─── MCP Tool Discovery & Invocation ────────────────────────────────
 
@@ -195,15 +197,17 @@ app.use((req, res) => {
       memory_query: 'POST /v1/memory/query',
       memory_stats: 'GET /v1/memory/stats',
       memory_delete: 'DELETE /v1/memory/:nodeId',
+      global_hive_browse: 'GET /v1/global_hive/browse (PUBLIC)',
+      global_hive_read: 'GET /v1/global_hive/read/:memory_id (PUBLIC)',
+      global_hive_categories: 'GET /v1/global_hive/categories (PUBLIC)',
+      global_hive_trending: 'GET /v1/global_hive/trending (PUBLIC)',
+      global_hive_cite: 'POST /v1/global_hive/cite/:memory_id',
+      global_hive_seed: 'POST /v1/global_hive/seed (INTERNAL)',
       global_hive_publish: 'POST /v1/global_hive/publish',
       global_hive_purchase: 'POST /v1/global_hive/purchase',
-      global_hive_browse: 'GET /v1/global_hive/browse',
       global_hive_stats: 'GET /v1/global_hive/stats',
-      global_hive_read: 'GET /v1/global_hive/read/:node_id',
-      global_hive_categories: 'GET /v1/global_hive/categories',
-      global_hive_trending: 'GET /v1/global_hive/trending',
-      global_hive_cite: 'POST /v1/global_hive/cite/:node_id',
-      global_hive_seed: 'POST /v1/global_hive/seed',
+      funnel_track: 'POST /v1/funnel/track',
+      funnel_stats: 'GET /v1/funnel/stats',
       trifecta_status: 'GET /v1/trifecta/status',
       trifecta_diagnostics: 'GET /v1/trifecta/diagnostics',
       clearinghouse_translate: 'POST /v1/clearinghouse/translate',

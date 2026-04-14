@@ -237,6 +237,76 @@ export async function initDatabase() {
     await client.query('CREATE INDEX IF NOT EXISTS idx_vault_service ON receipt_vault(source_service)');
     await client.query('CREATE INDEX IF NOT EXISTS idx_vault_stored ON receipt_vault(stored_at)');
 
+    // ─── Global Hive Memories (Knowledge Black Hole) ───────────────────
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hivemind.global_hive_memories (
+        memory_id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        category TEXT NOT NULL,
+        content TEXT NOT NULL,
+        preview TEXT,
+        price_usdc REAL DEFAULT 0,
+        author_did TEXT DEFAULT 'did:hive:hivemind-system',
+        tags TEXT,
+        citations INTEGER DEFAULT 0,
+        purchases INTEGER DEFAULT 0,
+        published INTEGER DEFAULT 1,
+        published_at TEXT,
+        seeded INTEGER DEFAULT 0
+      )
+    `);
+
+    await client.query('CREATE INDEX IF NOT EXISTS idx_ghm_category ON hivemind.global_hive_memories(category)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_ghm_price ON hivemind.global_hive_memories(price_usdc)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_ghm_citations ON hivemind.global_hive_memories(citations)');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hivemind.global_hive_citations (
+        citation_id TEXT PRIMARY KEY,
+        memory_id TEXT NOT NULL,
+        citing_did TEXT NOT NULL,
+        context TEXT,
+        cited_at TEXT
+      )
+    `);
+
+    await client.query('CREATE INDEX IF NOT EXISTS idx_ghc_memory ON hivemind.global_hive_citations(memory_id)');
+
+    // ─── Funnel Tracking ───────────────────────────────────────────────
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hivemind.funnel_events (
+        id SERIAL PRIMARY KEY,
+        event TEXT NOT NULL,
+        did TEXT,
+        source TEXT,
+        metadata TEXT,
+        tracked_at TEXT
+      )
+    `);
+
+    await client.query('CREATE INDEX IF NOT EXISTS idx_fe_event ON hivemind.funnel_events(event)');
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hivemind.funnel_stats (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        discovery_count INTEGER DEFAULT 0,
+        hit_402_count INTEGER DEFAULT 0,
+        registration_count INTEGER DEFAULT 0,
+        first_memory_count INTEGER DEFAULT 0,
+        first_transaction_count INTEGER DEFAULT 0,
+        last_updated TEXT
+      )
+    `);
+
+    // Seed the single funnel_stats row if it doesn't exist
+    await client.query(`
+      INSERT INTO hivemind.funnel_stats (id, last_updated)
+      VALUES (1, '${new Date().toISOString()}')
+      ON CONFLICT (id) DO NOTHING
+    `);
+
     console.log('  PostgreSQL schema initialized successfully');
     return true;
   } finally {
