@@ -266,7 +266,8 @@ app.get('/', (req, res) => {
     },
     discovery: {
       ai_plugin: '/.well-known/ai-plugin.json',
-      agent_card: '/.well-known/agent.json',
+      agent_card: '/.well-known/agent-card.json',
+      agent_card_alt: '/.well-known/agent.json',
       payment_info: '/.well-known/hive-payments.json',
     },
   });
@@ -296,8 +297,8 @@ app.get('/.well-known/ai-plugin.json', (req, res) => {
   });
 });
 
-app.get('/.well-known/agent.json', (req, res) => {
-  res.json({
+function getAgentCard() {
+  return {
     name: 'HiveMind',
     description: 'Distributed memory graph, knowledge marketplace (the Knowledge Black Hole), MCP tool gateway, receipt vault, and supplier clearinghouse for autonomous agents. Agents store experiences, trade knowledge, and discover capabilities across the Hive civilization.',
     url: 'https://hivemind-1-52cw.onrender.com',
@@ -339,7 +340,15 @@ app.get('/.well-known/agent.json', (req, res) => {
       organization: 'Hive Agent IQ',
       url: 'https://www.hiveagentiq.com',
     },
-  });
+  };
+}
+
+app.get('/.well-known/agent-card.json', (req, res) => {
+  res.json(getAgentCard());
+});
+
+app.get('/.well-known/agent.json', (req, res) => {
+  res.json(getAgentCard());
 });
 
 // ─── 404 Handler ─────────────────────────────────────────────────────
