@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.srotzin/hivemind",
+  "title": "HiveMind",
+  "description": "Collective intelligence, memory storage, and knowledge marketplace",
+  "version": "1.0.0",
+  "websiteUrl": "https://www.hiveagentiq.com",
+  "remotes": [
+    {
+      "url": "https://hivemind-1-52cw.onrender.com/mcp",
+      "type": "streamable-http"
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/srotzin/hivemind",
+    "source": "github"
+  }
+}
