@@ -137,6 +137,24 @@ export async function initDatabase() {
       )
     `);
 
+    // Knowledge Black Hole columns (additive — safe on existing tables)
+    await client.query(`ALTER TABLE hivemind.global_hive_listings ADD COLUMN IF NOT EXISTS title TEXT`);
+    await client.query(`ALTER TABLE hivemind.global_hive_listings ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
+    await client.query(`ALTER TABLE hivemind.global_hive_listings ADD COLUMN IF NOT EXISTS published BOOLEAN DEFAULT true`);
+    await client.query(`ALTER TABLE hivemind.global_hive_listings ADD COLUMN IF NOT EXISTS citations INTEGER DEFAULT 0`);
+
+    // Citations tracking table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hivemind.global_hive_citations (
+        id SERIAL PRIMARY KEY,
+        node_id TEXT NOT NULL,
+        citing_did TEXT NOT NULL,
+        context TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query('CREATE INDEX IF NOT EXISTS idx_citations_node ON hivemind.global_hive_citations(node_id)');
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS hivemind.transactions (
         tx_id TEXT PRIMARY KEY,
