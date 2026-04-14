@@ -18,6 +18,37 @@ const HIVE_INTERNAL_KEY = process.env.HIVE_INTERNAL_KEY || '';
 // In-memory fallback store
 const memoryVault = new Map();
 
+// Self-healing table creation — ensures receipt_vault exists on first use
+let tableEnsured = false;
+async function ensureVaultTable() {
+  if (tableEnsured || !isPostgresEnabled() || !pool) return;
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS receipt_vault (
+        receipt_id TEXT PRIMARY KEY,
+        transaction_id TEXT NOT NULL,
+        source_service TEXT NOT NULL,
+        amount_usdc NUMERIC(12,4) NOT NULL,
+        payer_did TEXT NOT NULL,
+        payee_did TEXT,
+        endpoint TEXT,
+        payload_hash TEXT,
+        receipt_hash TEXT NOT NULL,
+        compliance_cert_id TEXT,
+        metadata JSONB DEFAULT '{}',
+        stored_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_vault_payer ON receipt_vault(payer_did)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_vault_payee ON receipt_vault(payee_did)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_vault_service ON receipt_vault(source_service)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_vault_stored ON receipt_vault(stored_at)');
+    tableEnsured = true;
+    console.log('[Receipt Vault] Table ensured');
+  } catch (err) {
+    console.error('[Receipt Vault] Failed to ensure table:', err.message);
+  }
+}
 /**
  * Generate a SHA-256 receipt hash chaining key transaction fields.
  */
@@ -66,6 +97,7 @@ async function requestComplianceCert(receipt) {
  * Store a cryptographic receipt.
  */
 export async function storeReceipt({ transaction_id, source_service, amount_usdc, payer_did, payee_did, endpoint, payload_hash, metadata }) {
+  await ensureVaultTable();
   const receipt_id = `rcpt_${uuidv4().replace(/-/g, '')}`;
   const stored_at = new Date().toISOString();
   const receipt_hash = generateReceiptHash(transaction_id, amount_usdc, payer_did, payee_did, stored_at, payload_hash);
@@ -119,6 +151,7 @@ export async function storeReceipt({ transaction_id, source_service, amount_usdc
  * Retrieve a single receipt by ID.
  */
 export async function getReceipt(receiptId) {
+  await ensureVaultTable();
   if (isPostgresEnabled()) {
     const result = await pool.query('SELECT * FROM receipt_vault WHERE receipt_id = $1', [receiptId]);
     return result.rows[0] || null;
@@ -130,6 +163,8 @@ export async function getReceipt(receiptId) {
  * List all receipts for a given DID (as payer or payee).
  */
 export async function getReceiptsByDid(did, { limit = 50, offset = 0, since, service } = {}) {
+  await ensureVaultTable();
+  await ensureVaultTable();
   if (isPostgresEnabled()) {
     let query = 'SELECT * FROM receipt_vault WHERE (payer_did = $1 OR payee_did = $1)';
     const params = [did];
@@ -173,6 +208,7 @@ export async function getReceiptsByDid(did, { limit = 50, offset = 0, since, ser
  * Verify a receipt hash against stored data.
  */
 export async function verifyReceipt(receiptId, claimedHash) {
+  await ensureVaultTable();
   const receipt = await getReceipt(receiptId);
   if (!receipt) {
     return { verified: false, reason: 'receipt_not_found' };
@@ -190,6 +226,7 @@ export async function verifyReceipt(receiptId, claimedHash) {
  * Get vault-wide statistics.
  */
 export async function getVaultStats() {
+  await ensureVaultTable();
   if (isPostgresEnabled()) {
     const [totalResult, usdcResult, didsResult, serviceResult] = await Promise.all([
       pool.query('SELECT COUNT(*) as total FROM receipt_vault'),
