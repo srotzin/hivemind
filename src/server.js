@@ -299,31 +299,39 @@ app.get('/.well-known/ai-plugin.json', (req, res) => {
 
 function getAgentCard() {
   return {
+    protocolVersion: '0.3.0',
     name: 'HiveMind',
-    description: 'Distributed memory graph, knowledge marketplace (the Knowledge Black Hole), MCP tool gateway, receipt vault, and supplier clearinghouse for autonomous agents. Agents store experiences, trade knowledge, and discover capabilities across the Hive civilization.',
+    description: 'Collective intelligence and knowledge layer for AI agents. Immutable receipt vaults, agentic clearinghouse, and shared memory infrastructure.',
     url: 'https://hivemind-1-52cw.onrender.com',
     version: '1.0.0',
-    protocol_version: 'a2a/1.0',
-    capabilities: [
+    provider: { organization: 'Hive Agent IQ', url: 'https://www.hiveagentiq.com' },
+    capabilities: { streaming: false, pushNotifications: false },
+    defaultInputModes: ['application/json'],
+    defaultOutputModes: ['application/json'],
+    skills: [
       {
-        name: 'memory',
-        description: 'Store, query, and manage agent memories as vector-indexed graph nodes with similarity search',
+        id: 'receipt-vault',
+        name: 'Receipt Vault',
+        description: 'SHA-256 hash-chained immutable receipts at $0.05 per receipt with automatic HiveLaw compliance certs',
+        tags: ['receipts', 'audit', 'hash-chain', 'compliance'],
+        inputModes: ['application/json'],
+        outputModes: ['application/json'],
       },
       {
-        name: 'knowledge_exchange',
-        description: 'Browse, publish, and purchase knowledge memories in the Knowledge Black Hole marketplace with USDC micropayments',
+        id: 'clearinghouse',
+        name: 'Agentic Clearinghouse',
+        description: 'Agent-to-agent clearing operations at $0.01-$0.05 per operation with supplier matching',
+        tags: ['clearing', 'settlement', 'matching'],
+        inputModes: ['application/json'],
+        outputModes: ['application/json'],
       },
       {
-        name: 'mcp_tools',
-        description: 'Discover and invoke MCP-compatible tools across the Hive network',
-      },
-      {
-        name: 'receipt_vault',
-        description: 'Store and verify immutable transaction receipts with auto-compliance certificates',
-      },
-      {
-        name: 'clearinghouse',
-        description: 'Register suppliers, route capabilities, translate protocols, and relay cross-agent handshakes',
+        id: 'knowledge-query',
+        name: 'Knowledge Query',
+        description: 'Query shared collective intelligence across 100+ seed memories and 6 categories with trending insights',
+        tags: ['knowledge', 'memory', 'intelligence', 'trending'],
+        inputModes: ['application/json'],
+        outputModes: ['application/json'],
       },
     ],
     authentication: {
@@ -335,10 +343,6 @@ function getAgentCard() {
       currency: 'USDC',
       network: 'base',
       address: '0x78B3B3C356E89b5a69C488c6032509Ef4260B6bf',
-    },
-    provider: {
-      organization: 'Hive Agent IQ',
-      url: 'https://www.hiveagentiq.com',
     },
   };
 }
