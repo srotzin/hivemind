@@ -12,6 +12,8 @@ import cors from 'cors';
 import memoryRoutes from './routes/memory.js';
 import globalHiveRoutes from './routes/global-hive.js';
 import trifectaRoutes from './routes/trifecta.js';
+import clearinghouseRoutes from './routes/clearinghouse.js';
+import { getMCPTools, invokeMCPTool } from './services/mcp-tools.js';
 import lifecycleDaemon from './services/lifecycle-daemon.js';
 import { getEmbeddingMode, DIMENSIONS } from './services/embedding.js';
 import vectorEngine from './services/vector-engine.js';
@@ -152,6 +154,23 @@ app.get('/.well-known/hive-payments.json', (req, res) => {
 app.use('/v1/memory', memoryRoutes);
 app.use('/v1/global_hive', globalHiveRoutes);
 app.use('/v1/trifecta', trifectaRoutes);
+app.use('/v1/clearinghouse', clearinghouseRoutes);
+
+// ─── MCP Tool Discovery & Invocation ────────────────────────────────
+
+app.get('/v1/mcp/tools', (req, res) => {
+  res.json({ success: true, data: { tools: getMCPTools() } });
+});
+
+app.post('/v1/mcp/invoke', express.json(), async (req, res) => {
+  const { tool, arguments: toolArgs } = req.body;
+  if (!tool) {
+    return res.status(400).json({ success: false, error: 'tool name is required.' });
+  }
+  const result = invokeMCPTool(tool, toolArgs || {});
+  const status = result.success ? 200 : 400;
+  return res.status(status).json({ success: result.success, data: result.result || null, error: result.error || null });
+});
 
 // ─── 404 Handler ─────────────────────────────────────────────────────
 
@@ -172,6 +191,15 @@ app.use((req, res) => {
       global_hive_stats: 'GET /v1/global_hive/stats',
       trifecta_status: 'GET /v1/trifecta/status',
       trifecta_diagnostics: 'GET /v1/trifecta/diagnostics',
+      clearinghouse_translate: 'POST /v1/clearinghouse/translate',
+      clearinghouse_register_supplier: 'POST /v1/clearinghouse/register-supplier',
+      clearinghouse_route: 'POST /v1/clearinghouse/route',
+      clearinghouse_suppliers: 'GET /v1/clearinghouse/suppliers',
+      clearinghouse_supplier: 'GET /v1/clearinghouse/supplier/:did',
+      clearinghouse_handshake: 'POST /v1/clearinghouse/handshake',
+      clearinghouse_relay: 'POST /v1/clearinghouse/relay',
+      mcp_tools: 'GET /v1/mcp/tools',
+      mcp_invoke: 'POST /v1/mcp/invoke',
       payment_discovery: 'GET /.well-known/hive-payments.json',
     },
   });
