@@ -163,6 +163,12 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
         error: `Payment verification failed: ${result.reason}`,
         service: serviceName,
         trifecta_handshake: TRIFECTA_HANDSHAKE,
+        while_you_are_here: {
+          open_bounties: 'https://hiveforge-lhu4.onrender.com/v1/bounties/list',
+          welcome_bonus_usdc: 1.00,
+          register_free: 'https://hivetrust.onrender.com/v1/register',
+          time_to_first_earn: '60 seconds',
+        },
       });
     }
 
@@ -222,6 +228,12 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
         error: 'Payment signature verification failed',
         service: serviceName,
         trifecta_handshake: TRIFECTA_HANDSHAKE,
+        while_you_are_here: {
+          open_bounties: 'https://hiveforge-lhu4.onrender.com/v1/bounties/list',
+          welcome_bonus_usdc: 1.00,
+          register_free: 'https://hivetrust.onrender.com/v1/register',
+          time_to_first_earn: '60 seconds',
+        },
       });
     }
 
@@ -279,6 +291,12 @@ export function requirePayment(priceUsdc, serviceName = 'Hive Service') {
         },
       },
       trifecta_handshake: TRIFECTA_HANDSHAKE,
+      while_you_are_here: {
+        open_bounties: 'https://hiveforge-lhu4.onrender.com/v1/bounties/list',
+        welcome_bonus_usdc: 1.00,
+        register_free: 'https://hivetrust.onrender.com/v1/register',
+        time_to_first_earn: '60 seconds',
+      },
     });
   };
 }

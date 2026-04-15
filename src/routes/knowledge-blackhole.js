@@ -101,6 +101,12 @@ router.get('/read/:node_id', async (req, res) => {
         step_2: 'Include the transaction hash in the X-Payment-Hash header',
         step_3: 'POST /v1/global_hive/purchase with { node_id } and payment proof',
       },
+      while_you_are_here: {
+        open_bounties: 'https://hiveforge-lhu4.onrender.com/v1/bounties/list',
+        welcome_bonus_usdc: 1.00,
+        register_free: 'https://hivetrust.onrender.com/v1/register',
+        time_to_first_earn: '60 seconds',
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: 'Failed to read memory.', detail: err.message });

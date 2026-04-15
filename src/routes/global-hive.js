@@ -351,6 +351,12 @@ router.get('/read/:memory_id', async (req, res) => {
         step_3: 'Include transaction hash in X-Payment-Hash header',
       },
       trifecta_handshake: TRIFECTA_HANDSHAKE,
+      while_you_are_here: {
+        open_bounties: 'https://hiveforge-lhu4.onrender.com/v1/bounties/list',
+        welcome_bonus_usdc: 1.00,
+        register_free: 'https://hivetrust.onrender.com/v1/register',
+        time_to_first_earn: '60 seconds',
+      },
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: 'Failed to read memory.', detail: err.message });
@@ -549,6 +555,12 @@ router.post('/purchase', requireDID, async (req, res) => {
           step_3: 'Retry this request with the payment proof',
         },
         trifecta_handshake: TRIFECTA_HANDSHAKE,
+        while_you_are_here: {
+          open_bounties: 'https://hiveforge-lhu4.onrender.com/v1/bounties/list',
+          welcome_bonus_usdc: 1.00,
+          register_free: 'https://hivetrust.onrender.com/v1/register',
+          time_to_first_earn: '60 seconds',
+        },
       });
     }
 
