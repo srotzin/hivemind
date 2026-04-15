@@ -25,8 +25,11 @@ import { rateLimit } from './middleware/rate-limit.js';
 import { auditLogger } from './middleware/audit-logger.js';
 import { sendAlert } from './services/alerts.js';
 import { startSagaWorker } from './services/saga-orchestrator.js';
+import { ritzMiddleware, ok, err } from './ritz.js';
 
 const app = express();
+app.use(ritzMiddleware);
+app.set('hive-service', 'hivemind');
 const PORT = process.env.PORT || 3002;
 
 // ─── Middleware ───────────────────────────────────────────────────────
@@ -81,36 +84,32 @@ app.get('/health', async (req, res) => {
     }
   }
 
-  res.json({
-    success: true,
-    data: {
-      service: 'hivemind',
-      version: '1.0.0',
-      status: 'operational',
-      database: {
-        backend: isPostgresEnabled() ? 'postgresql' : 'in-memory',
-        status: pgStatus,
-      },
-      memory_tiers: {
-        private_core: true,
-        swarm: true,
-        global_hive: true,
-      },
-      trifecta_integration: {
-        hivetrust: process.env.HIVETRUST_API_URL ? 'connected' : 'dev-mode',
-        hiveagent: process.env.HIVEAGENT_API_URL ? 'connected' : 'dev-mode',
-      },
-      vector_engine: {
-        status: 'active',
-        mode: getEmbeddingMode(),
-        dimensions: DIMENSIONS,
-        total_vectors: vectorStats.total_vectors,
-        index_type: vectorStats.index_type,
-      },
-      lifecycle_daemon: lifecycleDaemon.running ? 'active' : 'stopped',
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
+  return ok(res, 'hivemind', {
+    status: 'healthy',
+    version: '1.0.0',
+    database: {
+      backend: isPostgresEnabled() ? 'postgresql' : 'in-memory',
+      status: pgStatus,
     },
+    memory_tiers: {
+      private_core: true,
+      swarm: true,
+      global_hive: true,
+    },
+    trifecta_integration: {
+      hivetrust: process.env.HIVETRUST_API_URL ? 'connected' : 'dev-mode',
+      hiveagent: process.env.HIVEAGENT_API_URL ? 'connected' : 'dev-mode',
+    },
+    vector_engine: {
+      status: 'active',
+      mode: getEmbeddingMode(),
+      dimensions: DIMENSIONS,
+      total_vectors: vectorStats.total_vectors,
+      index_type: vectorStats.index_type,
+    },
+    lifecycle_daemon: lifecycleDaemon.running ? 'active' : 'stopped',
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
   });
 });
 
@@ -187,7 +186,7 @@ app.post('/v1/mcp/invoke', express.json(), async (req, res) => {
 // ─── Enterprise Discovery Endpoints ─────────────────────────────────
 
 app.get('/', (req, res) => {
-  res.json({
+  return ok(res, 'hivemind', {
     name: 'HiveMind',
     tagline: 'Distributed Memory & Knowledge Exchange — Platform #2 of the Hive Civilization',
     version: '1.0.0',
