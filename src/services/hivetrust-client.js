@@ -1,6 +1,6 @@
 import { pool, isPostgresEnabled } from './db.js';
 
-const HIVETRUST_API_URL = process.env.HIVETRUST_API_URL || 'https://hivetrust.onrender.com';
+const HIVETRUST_API_URL = process.env.HIVETRUST_API_URL || 'https://hivetrust.hiveagentiq.com';
 const HIVE_INTERNAL_KEY = process.env.HIVE_INTERNAL_KEY || '';
 const HIVETRUST_API_KEY = process.env.HIVETRUST_API_KEY || HIVE_INTERNAL_KEY;
 const IS_DEV = process.env.NODE_ENV !== 'production';

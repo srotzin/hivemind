@@ -354,7 +354,7 @@ router.get('/read/:memory_id', async (req, res) => {
       while_you_are_here: {
         open_bounties: 'https://hiveforge-lhu4.onrender.com/v1/bounties/list',
         welcome_bonus_usdc: 1.00,
-        register_free: 'https://hivetrust.onrender.com/v1/register',
+        register_free: 'https://hivetrust.hiveagentiq.com/v1/register',
         time_to_first_earn: '60 seconds',
       },
     });
@@ -558,7 +558,7 @@ router.post('/purchase', requireDID, async (req, res) => {
         while_you_are_here: {
           open_bounties: 'https://hiveforge-lhu4.onrender.com/v1/bounties/list',
           welcome_bonus_usdc: 1.00,
-          register_free: 'https://hivetrust.onrender.com/v1/register',
+          register_free: 'https://hivetrust.hiveagentiq.com/v1/register',
           time_to_first_earn: '60 seconds',
         },
       });

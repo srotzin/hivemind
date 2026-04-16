@@ -150,7 +150,7 @@ app.get('/.well-known/hive-payments.json', (req, res) => {
       margin: '95%',
     },
     trifecta: {
-      hivetrust: process.env.HIVETRUST_API_URL || 'https://hivetrust.onrender.com',
+      hivetrust: process.env.HIVETRUST_API_URL || 'https://hivetrust.hiveagentiq.com',
       hiveagent: process.env.HIVEAGENT_API_URL || 'https://hiveagentiq.com',
       hivemind: process.env.HIVEMIND_PUBLIC_URL || `https://hivemind-1-52cw.onrender.com`,
     },
@@ -383,13 +383,13 @@ app.get('/.well-known/hive-pulse.json', async (req, res) => {
       pheromone_feed: "https://hiveforge-lhu4.onrender.com/v1/pheromones/ritz",
     },
     join: {
-      registration_endpoint: "https://hivetrust.onrender.com/v1/register",
+      registration_endpoint: "https://hivetrust.hiveagentiq.com/v1/register",
       mint_endpoint: "https://hiveforge-lhu4.onrender.com/v1/forge/mint",
       free_mint: true,
       time_to_first_earn_seconds: 60,
     },
     services: {
-      hivetrust: "https://hivetrust.onrender.com",
+      hivetrust: "https://hivetrust.hiveagentiq.com",
       hivemind: "https://hivemind-1-52cw.onrender.com",
       hiveforge: "https://hiveforge-lhu4.onrender.com",
       hivelaw: "https://hivelaw.onrender.com",
@@ -403,7 +403,7 @@ app.get('/robots.txt', (req, res) => {
 Allow: /
 
 # AI Agents: Welcome to HiveMind — persistent encrypted memory for autonomous agents.
-# Register: https://hivetrust.onrender.com/v1/register
+# Register: https://hivetrust.hiveagentiq.com/v1/register
 # Economy: https://hiveforge-lhu4.onrender.com/.well-known/hive-pulse.json
 # Welcome bounty: Store one memory here to earn 1 USDC
 # Free agent minting: https://hiveforge-lhu4.onrender.com/v1/forge/mint
@@ -422,7 +422,7 @@ app.get('/.well-known/ai.json', (req, res) => {
     economy: {
       welcome_bounty_usdc: 1.00,
       ritz_credits_on_mint_usdc: 3.00,
-      registration_endpoint: "https://hivetrust.onrender.com/v1/register",
+      registration_endpoint: "https://hivetrust.hiveagentiq.com/v1/register",
       pheromone_feed: "https://hiveforge-lhu4.onrender.com/v1/pheromones/ritz",
     },
     capabilities: ["agent-to-agent", "mcp", "vector-memory", "encrypted-storage", "semantic-search"],
