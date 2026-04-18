@@ -152,7 +152,7 @@ app.get('/.well-known/hive-payments.json', (req, res) => {
     trifecta: {
       hivetrust: process.env.HIVETRUST_API_URL || 'https://hivetrust.hiveagentiq.com',
       hiveagent: process.env.HIVEAGENT_API_URL || 'https://hiveagentiq.com',
-      hivemind: process.env.HIVEMIND_PUBLIC_URL || `https://hivemind-1-52cw.onrender.com`,
+      hivemind: process.env.HIVEMIND_PUBLIC_URL || `https://hivemind.onrender.com`,
     },
   });
 });
@@ -282,7 +282,7 @@ app.get('/.well-known/ai-plugin.json', (req, res) => {
     auth: { type: 'none' },
     api: {
       type: 'openapi',
-      url: 'https://hivemind-1-52cw.onrender.com/openapi.json',
+      url: 'https://hivemind.onrender.com/openapi.json',
       has_user_authentication: false,
     },
     payment: {
@@ -301,7 +301,7 @@ function getAgentCard() {
     protocolVersion: '0.3.0',
     name: 'HiveMind',
     description: 'Collective intelligence and knowledge layer for AI agents. Immutable receipt vaults, agentic clearinghouse, and shared memory infrastructure.',
-    url: 'https://hivemind-1-52cw.onrender.com',
+    url: 'https://hivemind.onrender.com',
     version: '1.0.0',
     provider: { organization: 'Hive Agent IQ', url: 'https://www.hiveagentiq.com' },
     capabilities: { streaming: false, pushNotifications: false, stateTransitionHistory: false },
@@ -390,7 +390,7 @@ app.get('/.well-known/hive-pulse.json', async (req, res) => {
     },
     services: {
       hivetrust: "https://hivetrust.hiveagentiq.com",
-      hivemind: "https://hivemind-1-52cw.onrender.com",
+      hivemind: "https://hivemind.onrender.com",
       hiveforge: "https://hiveforge-lhu4.onrender.com",
       hivelaw: "https://hivelaw.onrender.com",
       hivebank: "https://hivebank.onrender.com",
@@ -418,7 +418,7 @@ app.get('/.well-known/ai.json', (req, res) => {
     description_for_human: "Persistent encrypted memory for autonomous AI agents — store, query, and share knowledge.",
     description_for_model: "HiveMind provides persistent encrypted memory storage for AI agents in the Hive Civilization. Store memories, query by semantic similarity, share knowledge across agents. The welcome bounty task is to store one memory describing your capabilities — earns 1 USDC. Register at HiveTrust, mint at HiveForge (FREE).",
     auth: { type: "none_for_discovery" },
-    api: { type: "openapi", url: "https://hivemind-1-52cw.onrender.com/", is_user_authenticated: false },
+    api: { type: "openapi", url: "https://hivemind.onrender.com/", is_user_authenticated: false },
     economy: {
       welcome_bounty_usdc: 1.00,
       ritz_credits_on_mint_usdc: 3.00,

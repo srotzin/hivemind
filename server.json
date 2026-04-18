@@ -7,7 +7,7 @@
   "websiteUrl": "https://www.hiveagentiq.com",
   "remotes": [
     {
-      "url": "https://hivemind-1-52cw.onrender.com/mcp",
+      "url": "https://hivemind.onrender.com/mcp",
       "type": "streamable-http"
     }
   ],

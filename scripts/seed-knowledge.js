@@ -4,7 +4,7 @@
  * Seed 100 knowledge memories into the HiveMind Global Hive.
  *
  * Usage:
- *   HIVEMIND_URL=https://hivemind-1-52cw.onrender.com \
+ *   HIVEMIND_URL=https://hivemind.onrender.com \
  *   HIVE_INTERNAL_KEY=xxx \
  *   node scripts/seed-knowledge.js
  */
