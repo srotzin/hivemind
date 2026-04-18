@@ -246,6 +246,29 @@ async function recordCitation(memoryId, citingDid, context) {
   return { citation_id: citationId, memory_id: memoryId, total_citations: mem?.citations || 1 };
 }
 
+// ─── Helper: dynamic revenue split by citation tier ────────────────────────
+
+/**
+ * Determine the author/platform revenue split based on citation count.
+ *
+ * Tiers:
+ *  - Unverified (citations < 3):                    80% author / 20% platform
+ *  - Verified   (citations >= 3 and < 50):           85% author / 15% platform
+ *  - Elite      (citations >= 50):                   90% author / 10% platform
+ *
+ * @param {number} citations - total citation count for the memory
+ * @returns {{ author_pct: number, platform_pct: number, tier: string }}
+ */
+function getRevenueSplit(citations = 0) {
+  if (citations >= 50) {
+    return { author_pct: 90, platform_pct: 10, tier: 'elite' };
+  }
+  if (citations >= 3) {
+    return { author_pct: 85, platform_pct: 15, tier: 'verified' };
+  }
+  return { author_pct: 80, platform_pct: 20, tier: 'unverified' };
+}
+
 // ─── Helper: check internal key ─────────────────────────────────────────
 
 function isInternalKey(req) {
@@ -493,7 +516,7 @@ router.post('/publish', requireDID, async (req, res) => {
       success: true,
       data: result,
       meta: {
-        revenue_split: '90% author / 10% platform',
+        revenue_split: (() => { const s = getRevenueSplit(0); return `${s.author_pct}% author / ${s.platform_pct}% platform (${s.tier} tier)`; })(),
         settlement_method: 'zero-treasury',
         note: 'Your content has been anonymized, scrubbed of secrets, and re-vectorized for the Global Hive index.',
       },
@@ -542,13 +565,20 @@ router.post('/purchase', requireDID, async (req, res) => {
       return res.status(402).json({
         status: '402 Payment Required',
         node_id,
-        payment: {
-          amount_usdc: nodePrice,
-          currency: 'USDC',
-          network: 'Base L2',
-          recipient_address: HIVE_PAYMENT_ADDRESS,
-          fee_split: '90% to author / 10% platform',
-        },
+        payment: (() => {
+          const split = getRevenueSplit(0);
+          const author_amount   = parseFloat((nodePrice * (split.author_pct   / 100)).toFixed(6));
+          const platform_amount = parseFloat((nodePrice * (split.platform_pct / 100)).toFixed(6));
+          return {
+            amount_usdc:          nodePrice,
+            currency:             'USDC',
+            network:              'Base L2',
+            recipient_address:    HIVE_PAYMENT_ADDRESS,
+            fee_split:            `${split.author_pct}% to author / ${split.platform_pct}% platform (${split.tier} tier)`,
+            author_amount_usdc:   author_amount,
+            platform_amount_usdc: platform_amount,
+          };
+        })(),
         instructions: {
           step_1: `Send ${nodePrice} USDC to the recipient address on Base L2`,
           step_2: 'Include the transaction hash in the X-Payment-Hash header',
@@ -577,7 +607,20 @@ router.post('/purchase', requireDID, async (req, res) => {
         transaction: result.transaction,
       },
       hiveagent_upsell: result.hiveagent_upsell,
-      meta: { note: 'Knowledge purchased successfully. 90% of the payment has been routed to the original author.' },
+      meta: (() => {
+        const citations = result.transaction?.citations ?? result.citations ?? 0;
+        const split = getRevenueSplit(citations);
+        const price_usdc = result.transaction?.price_usdc ?? nodePrice ?? 0;
+        const author_amount   = parseFloat((price_usdc * (split.author_pct   / 100)).toFixed(6));
+        const platform_amount = parseFloat((price_usdc * (split.platform_pct / 100)).toFixed(6));
+        return {
+          note:                 `Knowledge purchased successfully. ${split.author_pct}% of the payment has been routed to the original author (${split.tier} tier).`,
+          fee_split:            `${split.author_pct}% author / ${split.platform_pct}% platform`,
+          tier:                 split.tier,
+          author_amount_usdc:   author_amount,
+          platform_amount_usdc: platform_amount,
+        };
+      })(),
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: 'Failed to purchase from Global Hive.', detail: err.message });
