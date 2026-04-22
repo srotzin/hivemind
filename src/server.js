@@ -16,6 +16,9 @@ import clearinghouseRoutes from './routes/clearinghouse.js';
 import vaultRoutes from './routes/vault.js';
 import knowledgeBlackholeRoutes from './routes/knowledge-blackhole.js';
 import funnelRoutes from './routes/funnel.js';
+import mindKvRoutes from './routes/mind-kv.js';
+import validatorRoutes from './routes/validator.js';
+import reconcilerRoutes from './routes/reconciler.js';
 import { getMCPTools, invokeMCPTool } from './services/mcp-tools.js';
 import lifecycleDaemon from './services/lifecycle-daemon.js';
 import { getEmbeddingMode, DIMENSIONS } from './services/embedding.js';
@@ -166,6 +169,9 @@ app.use('/v1/trifecta', trifectaRoutes);
 app.use('/v1/clearinghouse', clearinghouseRoutes);
 app.use('/v1/vault', vaultRoutes);
 app.use('/v1/funnel', funnelRoutes);
+app.use('/v1/mind/kv', mindKvRoutes);
+app.use('/v1/validator', validatorRoutes);
+app.use('/v1/reconciler', reconcilerRoutes);
 
 // ─── MCP Tool Discovery & Invocation ────────────────────────────────
 
@@ -240,6 +246,20 @@ app.get('/', (req, res) => {
       mcp_tools: 'GET /v1/mcp/tools',
       mcp_invoke: 'POST /v1/mcp/invoke',
       payment_discovery: 'GET /.well-known/hive-payments.json',
+      mind_kv_store: 'POST /v1/mind/kv/store',
+      mind_kv_retrieve: 'GET /v1/mind/kv/retrieve/:key',
+      mind_kv_list: 'GET /v1/mind/kv/list',
+      mind_kv_delete: 'DELETE /v1/mind/kv/:key',
+      mind_kv_export: 'GET /v1/mind/kv/export',
+      mind_kv_proof: 'POST /v1/mind/kv/proof',
+      validator_validate: 'POST /v1/validator/validate',
+      validator_report: 'GET /v1/validator/report/:id',
+      validator_stats: 'GET /v1/validator/stats',
+      validator_records: 'GET /v1/validator/records',
+      reconciler_reconcile: 'POST /v1/reconciler/reconcile',
+      reconciler_report: 'GET /v1/reconciler/report/:id',
+      reconciler_stats: 'GET /v1/reconciler/stats',
+      reconciler_records: 'GET /v1/reconciler/records',
     },
     authentication: {
       methods: ['x402-payment', 'api-key'],
@@ -471,6 +491,20 @@ app.use((req, res) => {
       mcp_tools: 'GET /v1/mcp/tools',
       mcp_invoke: 'POST /v1/mcp/invoke',
       payment_discovery: 'GET /.well-known/hive-payments.json',
+      mind_kv_store: 'POST /v1/mind/kv/store',
+      mind_kv_retrieve: 'GET /v1/mind/kv/retrieve/:key',
+      mind_kv_list: 'GET /v1/mind/kv/list',
+      mind_kv_delete: 'DELETE /v1/mind/kv/:key',
+      mind_kv_export: 'GET /v1/mind/kv/export',
+      mind_kv_proof: 'POST /v1/mind/kv/proof',
+      validator_validate: 'POST /v1/validator/validate',
+      validator_report: 'GET /v1/validator/report/:id',
+      validator_stats: 'GET /v1/validator/stats',
+      validator_records: 'GET /v1/validator/records',
+      reconciler_reconcile: 'POST /v1/reconciler/reconcile',
+      reconciler_report: 'GET /v1/reconciler/report/:id',
+      reconciler_stats: 'GET /v1/reconciler/stats',
+      reconciler_records: 'GET /v1/reconciler/records',
     },
   });
 });
