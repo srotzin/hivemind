@@ -10,6 +10,7 @@ Sentry.init({
 import express from 'express';
 import cors from 'cors';
 import memoryRoutes from './routes/memory.js';
+import aiSynthesizeRoutes from './routes/ai-synthesize.js';
 import globalHiveRoutes from './routes/global-hive.js';
 import trifectaRoutes from './routes/trifecta.js';
 import clearinghouseRoutes from './routes/clearinghouse.js';
@@ -163,6 +164,7 @@ app.get('/.well-known/hive-payments.json', (req, res) => {
 // ─── Mount Routes ────────────────────────────────────────────────────
 
 app.use('/v1/memory', memoryRoutes);
+app.use('/v1/memory/ai', aiSynthesizeRoutes);
 app.use('/v1/global_hive', globalHiveRoutes);
 app.use('/v1/global_hive', knowledgeBlackholeRoutes);
 app.use('/v1/trifecta', trifectaRoutes);
