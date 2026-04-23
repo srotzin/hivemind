@@ -191,4 +191,70 @@ router.get('/stats', requireDID, async (req, res) => {
   }
 });
 
+// ── HiveAI Memory Synthesis ──────────────────────────────────────────────────
+
+const HIVEAI_URL   = process.env.HIVEAI_URL || 'https://hive-ai-1.onrender.com';
+const HIVE_KEY     = process.env.HIVE_INTERNAL_KEY || 'hive_internal_125e04e071e8829be631ea0216dd4a0c9b707975fcecaf8c62c6a2ab43327d46';
+const HIVEAI_MODEL = 'meta-llama/llama-3.1-8b-instruct';
+
+async function hiveaiComplete(system, user, maxTokens = 200) {
+  try {
+    const res = await fetch(`${HIVEAI_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${HIVE_KEY}` },
+      body: JSON.stringify({ model: HIVEAI_MODEL, max_tokens: maxTokens,
+        messages: [{ role: 'system', content: system }, { role: 'user', content: user }] }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const text = data?.choices?.[0]?.message?.content?.trim();
+    if (!text) throw new Error('empty');
+    return { ok: true, text };
+  } catch (e) { return { ok: false, error: e.message }; }
+}
+
+/**
+ * POST /v1/memory/ai/synthesize
+ * $0.04/call — HiveAI synthesizes stored memories into actionable intelligence.
+ * Trigger: agent needs to act on accumulated context before a decision.
+ *
+ * Body: { query, context_limit? }
+ * Auth: requireDID
+ */
+router.post('/ai/synthesize', requireDID, async (req, res) => {
+  try {
+    const did = req.agentDid;
+    const { query, context_limit = 5 } = req.body || {};
+    if (!query) return res.status(400).json({ success: false, error: 'query required' });
+
+    // Pull relevant memories
+    let memories = [];
+    try {
+      memories = await memoryStore.queryPrivate(did, query, Math.min(context_limit, 10));
+    } catch (_) {}
+
+    const memText = memories.length > 0
+      ? memories.map((m, i) => `[${i+1}] ${m.content}`).join('\n')
+      : 'No stored memories found for this query.';
+
+    const system = 'You are HiveMind — the collective memory of the Hive network. Synthesize agent memories into actionable intelligence. 3-4 sentences. Be direct. Identify patterns the agent may have missed.';
+    const user = `Agent DID: ${did}\nQuery: "${query}"\nRetrieved memories:\n${memText}\n\nSynthesize these into the most important action the agent should take now.`;
+
+    const result = await hiveaiComplete(system, user, 200);
+
+    return res.status(200).json({
+      success: true,
+      synthesis: result.ok ? result.text : `Based on ${memories.length} memories, the pattern suggests focusing on ${query}. Review recent interactions and look for compounding signals.`,
+      memories_used: memories.length,
+      query,
+      source: result.ok ? 'hiveai' : 'fallback',
+      price_usdc: 0.04,
+      generated_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: 'Synthesis failed.', detail: err.message });
+  }
+});
+
 export default router;
