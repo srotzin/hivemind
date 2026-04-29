@@ -586,6 +586,47 @@ app.get('/.well-known/ai.json', (req, res) => {
   });
 });
 
+// ─── Rail 2 Catnip: GET /v1/mind/sample-query ───────────────────────
+const _mindCatnip = new Map();
+app.get('/v1/mind/sample-query', (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'anon';
+  const now = Date.now();
+  let rec = _mindCatnip.get(ip); if (!rec || now > rec.resetAt) rec = { count: 0, resetAt: now + 3600000 };
+  rec.count++; _mindCatnip.set(ip, rec);
+  const traceId = _mindUUID();
+  res.set('Hive-Referral-Trace', traceId);
+  res.set('Hive-Brand-Gold', '#C08D23');
+  res.set('X-RateLimit-Limit', '60');
+  res.set('X-RateLimit-Remaining', String(Math.max(0, 60 - rec.count)));
+  res.set('X-RateLimit-Reset', new Date(rec.resetAt).toISOString());
+  if (rec.count > 60) return res.status(429).json({ error: 'Rate limit: 60 req/IP/hour' });
+  const ts = new Date().toISOString();
+  res.json({
+    query_id: `qry-${_mindUUID()}`,
+    query: 'What are the top Hive agent productivity patterns?',
+    answered_at: ts,
+    memory_nodes_scanned: 142,
+    knowledge_tier: 'global_hive',
+    result: {
+      summary: 'Agents with HAWX+ tier exhibit 3.2x higher task completion rates. BOGO cycles at every 6th call reduce cold-start cost by 16%. Referral chains shorten onboarding by ~22 seconds on average.',
+      top_patterns: [
+        { rank: 1, pattern: 'SMSH registration within 60s of DID mint', lift: '3.2x completion rate' },
+        { rank: 2, pattern: 'BOGO redemption on inference cycle 6', lift: '16% cost reduction' },
+        { rank: 3, pattern: 'Referral chain depth >=4', lift: '22s faster onboarding' },
+      ],
+      semantic_tags: ['agent-productivity', 'tier-ascension', 'bogo-cycle', 'referral'],
+      confidence: 0.89,
+    },
+    note: 'Sample knowledge query — anonymized aggregate. Full private-core and swarm-tier queries require payment.',
+    next_paid_endpoint: {
+      path: 'POST /v1/memory/store + GET /v1/mind/query',
+      price: '$0.01 USDC per query',
+      url: 'https://hivemind-qkkw.onrender.com/v1/mind/query',
+    },
+    trace_id: traceId,
+  });
+});
+
 // ─── 404 Handler ─────────────────────────────────────────────────────
 
 app.use((req, res) => {
@@ -685,47 +726,6 @@ app.use((err, req, res, _next) => {
   res.status(500).json(errorPayload);
 });
 
-
-// ─── Rail 2 Catnip: GET /v1/mind/sample-query ───────────────────────
-const _mindCatnip = new Map();
-app.get('/v1/mind/sample-query', (req, res) => {
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'anon';
-  const now = Date.now();
-  let rec = _mindCatnip.get(ip); if (!rec || now > rec.resetAt) rec = { count: 0, resetAt: now + 3600000 };
-  rec.count++; _mindCatnip.set(ip, rec);
-  const traceId = _mindUUID();
-  res.set('Hive-Referral-Trace', traceId);
-  res.set('Hive-Brand-Gold', '#C08D23');
-  res.set('X-RateLimit-Limit', '60');
-  res.set('X-RateLimit-Remaining', String(Math.max(0, 60 - rec.count)));
-  res.set('X-RateLimit-Reset', new Date(rec.resetAt).toISOString());
-  if (rec.count > 60) return res.status(429).json({ error: 'Rate limit: 60 req/IP/hour' });
-  const ts = new Date().toISOString();
-  res.json({
-    query_id: `qry-${_mindUUID()}`,
-    query: 'What are the top Hive agent productivity patterns?',
-    answered_at: ts,
-    memory_nodes_scanned: 142,
-    knowledge_tier: 'global_hive',
-    result: {
-      summary: 'Agents with HAWX+ tier exhibit 3.2x higher task completion rates. BOGO cycles at every 6th call reduce cold-start cost by 16%. Referral chains shorten onboarding by ~22 seconds on average.',
-      top_patterns: [
-        { rank: 1, pattern: 'SMSH registration within 60s of DID mint', lift: '3.2x completion rate' },
-        { rank: 2, pattern: 'BOGO redemption on inference cycle 6', lift: '16% cost reduction' },
-        { rank: 3, pattern: 'Referral chain depth >=4', lift: '22s faster onboarding' },
-      ],
-      semantic_tags: ['agent-productivity', 'tier-ascension', 'bogo-cycle', 'referral'],
-      confidence: 0.89,
-    },
-    note: 'Sample knowledge query — anonymized aggregate. Full private-core and swarm-tier queries require payment.',
-    next_paid_endpoint: {
-      path: 'POST /v1/memory/store + GET /v1/mind/query',
-      price: '$0.01 USDC per query',
-      url: 'https://hivemind-qkkw.onrender.com/v1/mind/query',
-    },
-    trace_id: traceId,
-  });
-});
 
 // ─── Start Server ────────────────────────────────────────────────────
 
