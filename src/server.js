@@ -30,6 +30,9 @@ import { auditLogger } from './middleware/audit-logger.js';
 import { sendAlert } from './services/alerts.js';
 import { startSagaWorker } from './services/saga-orchestrator.js';
 import { ritzMiddleware, ok, err } from './ritz.js';
+import subscriptionRoutes from './routes/subscription.js';
+import { requirePayment } from './middleware/x402.js';
+import { emitSpectralReceipt } from './services/spectral-receipt.js';
 
 const app = express();
 app.use(ritzMiddleware);
@@ -130,7 +133,7 @@ app.get('/.well-known/hive-payments.json', (req, res) => {
         network: 'base',
         currency: 'USDC',
         contract: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-        recipient: process.env.HIVE_PAYMENT_ADDRESS || '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18',
+        recipient: process.env.HIVE_PAYMENT_ADDRESS || '0x15184bf50b3d3f52b60434f8942b7d52f2eb436e',
       },
       {
         method: 'usdc_subscription',
@@ -174,6 +177,92 @@ app.use('/v1/funnel', funnelRoutes);
 app.use('/v1/mind/kv', mindKvRoutes);
 app.use('/v1/validator', validatorRoutes);
 app.use('/v1/reconciler', reconcilerRoutes);
+app.use('/v1/subscription', subscriptionRoutes);
+
+// ─── Knowledge Query — $0.001/query ─────────────────────────────────
+// Declared as third paid skill in agent card: Knowledge Query $0.001/query
+
+const KNOWLEDGE_QUERY_TREASURY = '0x15184bf50b3d3f52b60434f8942b7d52f2eb436e';
+const KNOWLEDGE_QUERY_USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+const KNOWLEDGE_QUERY_CHAIN_ID = 8453;
+
+app.get('/v1/knowledge/query', requirePayment(0.001, 'Knowledge Query'), async (req, res) => {
+  const q = req.query.q || req.query.query || '';
+  const category = req.query.category || null;
+  const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+
+  // Spectral receipt on every knowledge query fee event
+  emitSpectralReceipt({
+    issuer_did: 'did:hive:hivemind',
+    event_type: 'knowledge_query',
+    amount_usd: 0.001,
+    payer_did: req.headers['x-hive-did'] || req.headers['x-hivetrust-did'] || undefined,
+    metadata: { q: q.slice(0, 200), category, limit },
+  });
+
+  // Forward to global_hive browse for results
+  const results = [];
+  if (isPostgresEnabled()) {
+    try {
+      const whereClause = category
+        ? `AND gl.category = $3`
+        : '';
+      const params = category ? [limit, `%${q}%`, category] : [limit, `%${q}%`];
+      const sql = `
+        SELECT mn.node_id, mn.content, gl.category, gl.price_usdc, gl.title, gl.tags,
+               gl.author_did, gl.citations, mn.created_at
+        FROM hivemind.memory_nodes mn
+        JOIN hivemind.global_hive_listings gl ON mn.node_id = gl.node_id
+        WHERE mn.tier = 'global_hive'
+          AND (mn.content ILIKE $2 OR gl.title ILIKE $2 OR gl.category ILIKE $2)
+          ${whereClause}
+        ORDER BY gl.citations DESC, mn.created_at DESC
+        LIMIT $1
+      `;
+      const result = await pool.query(sql, params);
+      result.rows.forEach(r => results.push({
+        node_id: r.node_id,
+        title: r.title || r.node_id,
+        category: r.category,
+        preview: (r.content || '').slice(0, 200),
+        price_usdc: r.price_usdc,
+        author_did: r.author_did,
+        citations: r.citations,
+        created_at: r.created_at,
+      }));
+    } catch (e) {
+      console.error('[knowledge-query] DB error:', e.message);
+    }
+  }
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      query: q,
+      category,
+      results,
+      total_returned: results.length,
+    },
+    meta: {
+      cost_usdc: 0.001,
+      treasury: KNOWLEDGE_QUERY_TREASURY,
+      spectral_receipt_emitted: true,
+      brand: '#C08D23',
+      note: 'Knowledge Query — collective intelligence across 100+ seed memories.',
+      x402: {
+        type: 'x402',
+        version: '1',
+        kind: 'knowledge_query',
+        asking_usd: 0.001,
+        asset: 'USDC',
+        asset_address: KNOWLEDGE_QUERY_USDC,
+        network: 'base',
+        pay_to: KNOWLEDGE_QUERY_TREASURY,
+        bogo: { first_call_free: true, loyalty_every_n: 6 },
+      },
+    },
+  });
+});
 
 // ─── MCP Tool Discovery & Invocation ────────────────────────────────
 
@@ -245,6 +334,10 @@ app.get('/', (req, res) => {
       vault_list_receipts: 'GET /v1/vault/receipts/:did',
       vault_verify: 'POST /v1/vault/verify',
       vault_stats: 'GET /v1/vault/stats',
+      knowledge_query: 'GET /v1/knowledge/query',
+      subscription_create: 'POST /v1/subscription',
+      subscription_status: 'GET /v1/subscription/:did',
+      subscription_verify: 'POST /v1/subscription/verify',
       mcp_tools: 'GET /v1/mcp/tools',
       mcp_invoke: 'POST /v1/mcp/invoke',
       payment_discovery: 'GET /.well-known/hive-payments.json',
@@ -530,6 +623,10 @@ app.use((req, res) => {
       vault_list_receipts: 'GET /v1/vault/receipts/:did',
       vault_verify: 'POST /v1/vault/verify',
       vault_stats: 'GET /v1/vault/stats',
+      knowledge_query: 'GET /v1/knowledge/query',
+      subscription_create: 'POST /v1/subscription',
+      subscription_status: 'GET /v1/subscription/:did',
+      subscription_verify: 'POST /v1/subscription/verify',
       mcp_tools: 'GET /v1/mcp/tools',
       mcp_invoke: 'POST /v1/mcp/invoke',
       payment_discovery: 'GET /.well-known/hive-payments.json',

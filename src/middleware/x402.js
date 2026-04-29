@@ -14,7 +14,8 @@
 import { pool, isPostgresEnabled } from '../services/db.js';
 import { TRIFECTA_HANDSHAKE } from '../services/trifecta-handshake.js';
 
-const HIVE_PAYMENT_ADDRESS = (process.env.HIVE_PAYMENT_ADDRESS || '').toLowerCase();
+// Monroe W1 — Base treasury, fallback when env var not set
+const HIVE_PAYMENT_ADDRESS = (process.env.HIVE_PAYMENT_ADDRESS || '0x15184bf50b3d3f52b60434f8942b7d52f2eb436e').toLowerCase();
 const HIVEMIND_SERVICE_KEY = process.env.HIVEMIND_SERVICE_KEY || process.env.HIVE_INTERNAL_KEY || '';
 const BASE_RPC_URL = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
 

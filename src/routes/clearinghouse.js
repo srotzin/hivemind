@@ -30,6 +30,7 @@ import {
   relayMessage,
   getClearinghouseStats,
 } from '../services/protocol-translator.js';
+import { emitSpectralReceipt } from '../services/spectral-receipt.js';
 
 const router = Router();
 
@@ -72,6 +73,15 @@ router.post('/translate', requireDID, requirePayment(0.02, 'Clearinghouse Transl
       }
     }
 
+    // Spectral receipt emission on every clearinghouse fee event
+    emitSpectralReceipt({
+      issuer_did: 'did:hive:hivemind',
+      event_type: 'clearinghouse_translate',
+      amount_usd: 0.02,
+      payer_did: req.agentDid,
+      metadata: { detected_protocol: detected, target_protocol: target_protocol || null },
+    });
+
     return res.status(200).json({
       success: true,
       data: {
@@ -83,6 +93,7 @@ router.post('/translate', requireDID, requirePayment(0.02, 'Clearinghouse Transl
       meta: {
         cost_usdc: 0.02,
         note: 'Protocol translation completed. Use routing_suggestion to forward to the appropriate Hive service.',
+        spectral_receipt_emitted: true,
       },
     });
   } catch (err) {
@@ -139,12 +150,22 @@ router.post('/register-supplier', requireDID, requirePayment(0.05, 'Clearinghous
       payment_methods,
     });
 
+    // Spectral receipt on supplier registration fee
+    emitSpectralReceipt({
+      issuer_did: 'did:hive:hivemind',
+      event_type: 'clearinghouse_register_supplier',
+      amount_usd: 0.05,
+      payer_did: req.agentDid,
+      metadata: { supplier_did, protocol, name },
+    });
+
     return res.status(201).json({
       success: true,
       data: record,
       meta: {
         cost_usdc: 0.05,
         note: 'Supplier registered. Other agents can now discover and route requests to this supplier via the clearinghouse.',
+        spectral_receipt_emitted: true,
       },
     });
   } catch (err) {
@@ -177,11 +198,21 @@ router.post('/route', requireDID, requirePayment(0.03, 'Clearinghouse Routing'),
       preferred_protocol,
     });
 
+    // Spectral receipt on route fee
+    emitSpectralReceipt({
+      issuer_did: 'did:hive:hivemind',
+      event_type: 'clearinghouse_route',
+      amount_usd: 0.03,
+      payer_did: req.agentDid,
+      metadata: { request_type, urgency: urgency || 'normal', matches: result.total_matches || 0 },
+    });
+
     return res.status(200).json({
       success: true,
       data: result,
       meta: {
         cost_usdc: 0.03,
+        spectral_receipt_emitted: true,
         note: result.status === 'routed'
           ? `Matched ${result.total_matches} supplier(s). Primary: ${result.routing_plan.primary.name}`
           : 'No matching suppliers found. Register suppliers first.',
@@ -268,11 +299,21 @@ router.post('/handshake', requireDID, requirePayment(0.01, 'Clearinghouse Handsh
 
     const result = negotiateHandshake({ initiator_did, target_did, proposed_protocols });
 
+    // Spectral receipt on handshake fee
+    emitSpectralReceipt({
+      issuer_did: 'did:hive:hivemind',
+      event_type: 'clearinghouse_handshake',
+      amount_usd: 0.01,
+      payer_did: req.agentDid,
+      metadata: { initiator_did, target_did, status: result.status },
+    });
+
     return res.status(200).json({
       success: true,
       data: result,
       meta: {
         cost_usdc: 0.01,
+        spectral_receipt_emitted: true,
         note: result.status === 'agreed'
           ? `Agreed on protocol: ${result.agreed_protocol}. Connection parameters provided.`
           : 'Handshake pending — target agent may need to confirm.',
@@ -314,6 +355,15 @@ router.post('/relay', requireDID, requirePayment(0.05, 'Clearinghouse Relay'), a
       headers: req.headers,
     });
 
+    // Spectral receipt on relay fee
+    emitSpectralReceipt({
+      issuer_did: 'did:hive:hivemind',
+      event_type: 'clearinghouse_relay',
+      amount_usd: 0.05,
+      payer_did: req.agentDid,
+      metadata: { target_did, source_protocol, status: result.status },
+    });
+
     const statusCode = result.status === 'delivered' ? 200
       : result.status === 'target_not_found' ? 404
         : result.status === 'translation_failed' ? 400
@@ -324,6 +374,7 @@ router.post('/relay', requireDID, requirePayment(0.05, 'Clearinghouse Relay'), a
       data: result,
       meta: {
         cost_usdc: 0.05,
+        spectral_receipt_emitted: true,
         note: result.status === 'delivered'
           ? `Message relayed to ${target_did} via ${result.target_protocol} protocol.`
           : `Relay status: ${result.status}`,
